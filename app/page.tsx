@@ -22,6 +22,7 @@ const money = (value: number, currency: "TWD" | "USD", digits = 0) =>
   new Intl.NumberFormat("zh-TW", { style: "currency", currency, maximumFractionDigits: currency === "USD" ? Math.max(2, digits) : digits }).format(value || 0);
 const number = (value: number) => new Intl.NumberFormat("zh-TW", { maximumFractionDigits: 4 }).format(value || 0);
 const pct = (value: number) => `${value >= 0 ? "+" : ""}${(value || 0).toFixed(2)}%`;
+const quoteTime = (value?: string) => value ? new Intl.DateTimeFormat("zh-TW", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "Asia/Taipei" }).format(new Date(value)) : "尚未更新";
 
 function normalizeSymbol(value: string) {
   const symbol = value.trim().toUpperCase();
@@ -71,9 +72,9 @@ export default function Home() {
     setNotice("");
     try {
       const response = await fetch(`/api/lookup?q=${encodeURIComponent(query)}`, { cache: "no-store" });
-      const data = await response.json() as { symbol?: string; name?: string; price?: number; currency?: string; error?: string };
+      const data = await response.json() as { symbol?: string; name?: string; price?: number; currency?: string; quoteTime?: string; error?: string };
       if (!response.ok || !data.symbol || !data.price) throw new Error(data.error || "找不到符合的股票");
-      const resolved = { symbol: data.symbol, name: data.name || data.symbol, price: data.price, currency: data.currency === "USD" ? "USD" as const : "TWD" as const };
+      const resolved = { symbol: data.symbol, name: data.name || data.symbol, price: data.price, currency: data.currency === "USD" ? "USD" as const : "TWD" as const, quoteTime: data.quoteTime };
       setForm((current) => ({ ...current, ...resolved }));
       setNotice(`已找到 ${resolved.name}（${resolved.symbol}），即時股價 ${money(resolved.price, resolved.currency, 2)}`);
       return resolved;
@@ -93,7 +94,7 @@ export default function Home() {
     }
     const resolved = await resolveStock();
     if (!resolved) return;
-    const item: Holding = { id: crypto.randomUUID(), symbol: normalizeSymbol(resolved.symbol), name: resolved.name || resolved.symbol, shares, cost, price: resolved.price, currency: resolved.currency };
+    const item: Holding = { id: crypto.randomUUID(), symbol: normalizeSymbol(resolved.symbol), name: resolved.name || resolved.symbol, shares, cost, price: resolved.price, currency: resolved.currency, updatedAt: resolved.quoteTime };
     setHoldings((items) => [...items, item]);
     setSelectedId(item.id);
     setForm({ query: "", symbol: "", name: "", shares: "", cost: "", price: "", currency: "TWD" });
@@ -105,9 +106,9 @@ export default function Home() {
     setNotice("");
     try {
       const response = await fetch(`/api/lookup?q=${encodeURIComponent(item.symbol)}`, { cache: "no-store" });
-      const data = await response.json() as { price?: number; name?: string; currency?: string; error?: string };
+      const data = await response.json() as { price?: number; name?: string; currency?: string; quoteTime?: string; error?: string };
       if (!response.ok || !data.price) throw new Error(data.error || "目前無法取得報價");
-      setHoldings((items) => items.map((row) => row.id === item.id ? { ...row, price: data.price!, name: data.name || row.name, currency: data.currency === "USD" ? "USD" : row.currency, updatedAt: new Date().toISOString() } : row));
+      setHoldings((items) => items.map((row) => row.id === item.id ? { ...row, price: data.price!, name: data.name || row.name, currency: data.currency === "USD" ? "USD" : row.currency, updatedAt: data.quoteTime || new Date().toISOString() } : row));
       setNotice(`${item.symbol} 報價已更新`);
     } catch (error) {
       setNotice(error instanceof Error ? `${error.message}，可直接點股價手動修改` : "報價更新失敗");
@@ -155,7 +156,7 @@ export default function Home() {
                 return <tr key={item.id} className={selected?.id === item.id ? "selected" : ""} onClick={() => setSelectedId(item.id)}>
                   <td><div className="stock-name"><span>{item.symbol.replace(".TW", "")}</span><small>{item.name} · {item.currency}</small></div></td>
                   <td>{number(item.shares)}</td><td>{money(item.cost / item.shares, item.currency, 2)}</td>
-                  <td><button className="price-button" onClick={(e) => { e.stopPropagation(); updatePrice(item); }}>{money(item.price, item.currency, 2)}</button></td>
+                  <td><button className="price-button" onClick={(e) => { e.stopPropagation(); updatePrice(item); }}>{money(item.price, item.currency, 2)}</button><small className="quote-time">報價 {quoteTime(item.updatedAt)}</small></td>
                   <td>{money(value, item.currency)}</td><td className={profit >= 0 ? "gain" : "loss"}>{money(profit, item.currency)}</td>
                   <td><span className={`pill ${roi >= 0 ? "up" : "down"}`}>{pct(roi)}</span></td>
                   <td><button className="refresh" disabled={loading === item.id} onClick={(e) => { e.stopPropagation(); refreshQuote(item); }} aria-label={`更新 ${item.symbol} 報價`}>{loading === item.id ? "…" : "↻"}</button><button className="delete" onClick={(e) => { e.stopPropagation(); setHoldings((rows) => rows.filter((row) => row.id !== item.id)); }}>×</button></td>
