@@ -104,10 +104,10 @@ export default function Home() {
     setLoading(item.id);
     setNotice("");
     try {
-      const response = await fetch(`/api/quote?symbol=${encodeURIComponent(item.symbol)}`, { cache: "no-store" });
+      const response = await fetch(`/api/lookup?q=${encodeURIComponent(item.symbol)}`, { cache: "no-store" });
       const data = await response.json() as { price?: number; name?: string; currency?: string; error?: string };
       if (!response.ok || !data.price) throw new Error(data.error || "目前無法取得報價");
-      setHoldings((items) => items.map((row) => row.id === item.id ? { ...row, price: data.price!, name: row.name === row.symbol && data.name ? data.name : row.name, currency: data.currency === "USD" ? "USD" : row.currency, updatedAt: new Date().toISOString() } : row));
+      setHoldings((items) => items.map((row) => row.id === item.id ? { ...row, price: data.price!, name: data.name || row.name, currency: data.currency === "USD" ? "USD" : row.currency, updatedAt: new Date().toISOString() } : row));
       setNotice(`${item.symbol} 報價已更新`);
     } catch (error) {
       setNotice(error instanceof Error ? `${error.message}，可直接點股價手動修改` : "報價更新失敗");
