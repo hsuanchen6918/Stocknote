@@ -78,12 +78,14 @@ export async function GET(request: NextRequest) {
 
     const symbol = quote.symbol || result.symbol;
     const isTaiwan = symbol.endsWith(".TW") || symbol.endsWith(".TWO");
+    const exchangeQuote = !isTaiwan && quote.currency === "USD" ? await getLiveQuote("TWD=X") : null;
     return NextResponse.json({
       symbol,
       name: isTaiwan ? (result.shortname || result.longname || quote.shortName || symbol) : (result.longname || result.shortname || quote.longName || quote.shortName || symbol),
       price: quote.regularMarketPrice,
       quoteTime: quote.regularMarketTime ? new Date(quote.regularMarketTime * 1000).toISOString() : new Date().toISOString(),
       currency: quote.currency === "USD" ? "USD" : isTaiwan ? "TWD" : quote.currency,
+      exchangeRate: exchangeQuote?.regularMarketPrice,
       exchange: quote.exchangeName || result.exchange,
       source: "Yahoo Finance",
     });

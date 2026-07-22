@@ -11,6 +11,9 @@ type Holding = {
   price: number;
   currency: "TWD" | "USD";
   updatedAt?: string;
+  inputCost?: number;
+  inputCostCurrency?: "TWD" | "USD";
+  exchangeRate?: number;
 };
 
 const seed: Holding[] = [
@@ -34,7 +37,7 @@ export default function Home() {
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [ready, setReady] = useState(false);
   const [selectedId, setSelectedId] = useState("");
-  const [form, setForm] = useState({ query: "", symbol: "", name: "", shares: "", cost: "", price: "", currency: "TWD" as "TWD" | "USD" });
+  const [form, setForm] = useState({ query: "", symbol: "", name: "", shares: "", cost: "", price: "", currency: "TWD" as "TWD" | "USD", costCurrency: "TWD" as "TWD" | "USD", exchangeRate: 0 });
   const [buyPrice, setBuyPrice] = useState("");
   const [buyShares, setBuyShares] = useState("");
   const [targetPrice, setTargetPrice] = useState("");
@@ -72,10 +75,10 @@ export default function Home() {
     setNotice("");
     try {
       const response = await fetch(`/api/lookup?q=${encodeURIComponent(query)}`, { cache: "no-store" });
-      const data = await response.json() as { symbol?: string; name?: string; price?: number; currency?: string; quoteTime?: string; error?: string };
+      const data = await response.json() as { symbol?: string; name?: string; price?: number; currency?: string; quoteTime?: string; exchangeRate?: number; error?: string };
       if (!response.ok || !data.symbol || !data.price) throw new Error(data.error || "找不到符合的股票");
-      const resolved = { symbol: data.symbol, name: data.name || data.symbol, price: data.price, currency: data.currency === "USD" ? "USD" as const : "TWD" as const, quoteTime: data.quoteTime };
-      setForm((current) => ({ ...current, ...resolved }));
+      const resolved = { symbol: data.symbol, name: data.name || data.symbol, price: data.price, currency: data.currency === "USD" ? "USD" as const : "TWD" as const, quoteTime: data.quoteTime, exchangeRate: data.exchangeRate || 0 };
+      setForm((current) => ({ ...current, ...resolved, costCurrency: current.symbol ? current.costCurrency : resolved.currency }));
       setNotice(`已找到 ${resolved.name}（${resolved.symbol}），即時股價 ${money(resolved.price, resolved.currency, 2)}`);
       return resolved;
     } catch (error) {
@@ -94,11 +97,18 @@ export default function Home() {
     }
     const resolved = await resolveStock();
     if (!resolved) return;
-    const item: Holding = { id: crypto.randomUUID(), symbol: normalizeSymbol(resolved.symbol), name: resolved.name || resolved.symbol, shares, cost, price: resolved.price, currency: resolved.currency, updatedAt: resolved.quoteTime };
+    const needsConversion = resolved.currency === "USD" && form.costCurrency === "TWD";
+    const rate = resolved.exchangeRate || form.exchangeRate;
+    if (needsConversion && !rate) {
+      setNotice("目前無法取得美元兌台幣匯率，請改用美元輸入總成本或稍後再試");
+      return;
+    }
+    const normalizedCost = needsConversion ? cost / rate : cost;
+    const item: Holding = { id: crypto.randomUUID(), symbol: normalizeSymbol(resolved.symbol), name: resolved.name || resolved.symbol, shares, cost: normalizedCost, price: resolved.price, currency: resolved.currency, updatedAt: resolved.quoteTime, inputCost: cost, inputCostCurrency: form.costCurrency, exchangeRate: needsConversion ? rate : undefined };
     setHoldings((items) => [...items, item]);
     setSelectedId(item.id);
-    setForm({ query: "", symbol: "", name: "", shares: "", cost: "", price: "", currency: "TWD" });
-    setNotice(`${item.name} 已加入庫存`);
+    setForm({ query: "", symbol: "", name: "", shares: "", cost: "", price: "", currency: "TWD", costCurrency: "TWD", exchangeRate: 0 });
+    setNotice(`${item.name} 已加入庫存${needsConversion ? `（以 1 USD = ${rate.toFixed(3)} TWD 換算）` : ""}`);
   }
 
   async function refreshQuote(item: Holding) {
@@ -155,7 +165,7 @@ export default function Home() {
                 const value = item.shares * item.price; const profit = value - item.cost; const roi = item.cost ? profit / item.cost * 100 : 0;
                 return <tr key={item.id} className={selected?.id === item.id ? "selected" : ""} onClick={() => setSelectedId(item.id)}>
                   <td><div className="stock-name"><span>{item.symbol.replace(".TW", "")}</span><small>{item.name} · {item.currency}</small></div></td>
-                  <td>{number(item.shares)}</td><td>{money(item.cost / item.shares, item.currency, 2)}</td>
+                  <td>{number(item.shares)}</td><td>{money(item.cost / item.shares, item.currency, 2)}{item.currency === "USD" && item.inputCostCurrency === "TWD" && <small className="quote-time">原始總成本 {money(item.inputCost || 0, "TWD")}</small>}</td>
                   <td><button className="price-button" onClick={(e) => { e.stopPropagation(); updatePrice(item); }}>{money(item.price, item.currency, 2)}</button><small className="quote-time">報價 {quoteTime(item.updatedAt)}</small></td>
                   <td>{money(value, item.currency)}</td><td className={profit >= 0 ? "gain" : "loss"}>{money(profit, item.currency)}</td>
                   <td><span className={`pill ${roi >= 0 ? "up" : "down"}`}>{pct(roi)}</span></td>
@@ -172,8 +182,8 @@ export default function Home() {
         <form id="add" className="panel add-panel" onSubmit={addHolding}>
           <div className="panel-title"><span>＋</span><div><p className="eyebrow">新增資料</p><h2>輸入現有庫存</h2></div></div>
           <label>股票名稱或代號（二擇一）<div className="lookup-row"><input value={form.query} onChange={(e) => setForm({ ...form, query: e.target.value, symbol: "", name: "", price: "" })} onBlur={() => { if (form.query && !form.symbol) void resolveStock(); }} placeholder="例如：台積電、2330、Apple 或 AAPL" /><button type="button" onClick={() => void resolveStock()} disabled={loading === "lookup"}>{loading === "lookup" ? "搜尋中…" : "搜尋即時股價"}</button></div><small>輸入其中一項後，系統會自動對應股票名稱、代號、幣別及最新價格</small></label>
-          {form.symbol && form.price && <div className="lookup-result"><div><span>已辨識股票</span><strong>{form.name}</strong><small>{form.symbol} · {form.currency}</small></div><div><span>最新市場價格</span><strong>{money(Number(form.price), form.currency, 2)}</strong><small>加入時會再確認一次</small></div></div>}
-          <div className="two-col"><label>庫存股數<input type="number" min="0" step="any" value={form.shares} onChange={(e) => setForm({ ...form, shares: e.target.value })} placeholder="1000" /></label><label>總成本<input type="number" min="0" step="any" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} placeholder="920000" /></label></div>
+          {form.symbol && form.price && <div className="lookup-result"><div><span>已辨識股票</span><strong>{form.name}</strong><small>{form.symbol} · {form.currency}</small></div><div><span>最新市場價格</span><strong>{money(Number(form.price), form.currency, 2)}</strong><small>{form.currency === "USD" && form.exchangeRate ? `匯率 1 USD = ${form.exchangeRate.toFixed(3)} TWD` : "加入時會再確認一次"}</small></div></div>}
+          <div className="two-col"><label>庫存股數<input type="number" min="0" step="any" value={form.shares} onChange={(e) => setForm({ ...form, shares: e.target.value })} placeholder="1000" /></label><label>總成本<div className="cost-input-row"><input type="number" min="0" step="any" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} placeholder={form.costCurrency === "TWD" ? "例如 920000" : "例如 2280"} />{form.currency === "USD" ? <select aria-label="總成本幣別" value={form.costCurrency} onChange={(e) => setForm({ ...form, costCurrency: e.target.value as "TWD" | "USD" })}><option value="USD">美元 USD</option><option value="TWD">台幣 TWD</option></select> : <span>台幣 TWD</span>}</div>{form.currency === "USD" && form.costCurrency === "TWD" && <small>將依最新美元兌台幣匯率換算為美元成本</small>}</label></div>
           <button className="primary-button" type="submit" disabled={loading === "lookup"}>{loading === "lookup" ? "正在取得市場報價…" : "抓取即時股價並加入投資組合"} <span>→</span></button>
         </form>
 
