@@ -151,9 +151,9 @@ export default function Home() {
     setNotice("");
     try {
       const response = await fetch(`/api/lookup?q=${encodeURIComponent(item.symbol)}`, { cache: "no-store" });
-      const data = await response.json() as { price?: number; name?: string; currency?: string; quoteTime?: string; error?: string };
+      const data = await response.json() as { price?: number; name?: string; currency?: string; quoteTime?: string; exchangeRate?: number; error?: string };
       if (!response.ok || !data.price) throw new Error(data.error || "目前無法取得報價");
-      setHoldings((items) => items.map((row) => row.id === item.id ? { ...row, price: data.price!, name: data.name || row.name, currency: data.currency === "USD" ? "USD" : row.currency, updatedAt: data.quoteTime || new Date().toISOString() } : row));
+      setHoldings((items) => items.map((row) => row.id === item.id ? { ...row, price: data.price!, name: data.name || row.name, currency: data.currency === "USD" ? "USD" : row.currency, exchangeRate: data.exchangeRate || row.exchangeRate, updatedAt: data.quoteTime || new Date().toISOString() } : row));
       setNotice(`${item.symbol} 報價已更新`);
     } catch (error) {
       setNotice(error instanceof Error ? `${error.message}，可直接點股價手動修改` : "報價更新失敗");
@@ -197,12 +197,19 @@ export default function Home() {
             <thead><tr><th>標的</th><th>庫存股數</th><th>平均成本</th><th>目前股價</th><th>目前市值</th><th>未實現損益</th><th>報酬率</th><th /></tr></thead>
             <tbody>
               {holdings.map((item) => {
-                const value = item.shares * item.price; const profit = value - item.cost; const roi = item.cost ? profit / item.cost * 100 : 0;
+                const value = item.shares * item.price;
+                const profit = value - item.cost;
+                const showMarketInTwd = item.currency === "USD" && item.inputCostCurrency === "TWD" && Boolean(item.exchangeRate);
+                const displayCurrency = showMarketInTwd ? "TWD" : item.currency;
+                const displayValue = showMarketInTwd ? value * item.exchangeRate! : value;
+                const displayProfit = showMarketInTwd ? displayValue - enteredTotalCost(item) : profit;
+                const roiCost = showMarketInTwd ? enteredTotalCost(item) : item.cost;
+                const roi = roiCost ? displayProfit / roiCost * 100 : 0;
                 return <tr key={item.id} className={selected?.id === item.id ? "selected" : ""} onClick={() => setSelectedId(item.id)}>
                   <td><div className="stock-name"><span>{item.symbol.replace(".TW", "")}</span><small>{item.name} · {item.currency}</small></div></td>
-                  <td>{number(item.shares)}</td><td>{money(enteredTotalCost(item) / item.shares, enteredCostCurrency(item), 2)}<small className="quote-time">總成本 {money(enteredTotalCost(item), enteredCostCurrency(item))}</small>{(item.inputFee || item.inputOtherFee) && <small className="quote-time">含費用 {money((item.inputFee || 0) + (item.inputOtherFee || 0), enteredCostCurrency(item))}</small>}{item.currency === "USD" && item.inputCostCurrency === "TWD" && <small className="quote-time">損益以建檔匯率換算</small>}</td>
+                  <td>{number(item.shares)}</td><td>{money(item.cost / item.shares, item.currency, 2)}<small className="quote-time">總成本 {money(enteredTotalCost(item), enteredCostCurrency(item))}</small>{(item.inputFee || item.inputOtherFee) && <small className="quote-time">含費用 {money((item.inputFee || 0) + (item.inputOtherFee || 0), enteredCostCurrency(item))}</small>}{showMarketInTwd && <small className="quote-time">市值依匯率 {item.exchangeRate!.toFixed(3)} 換算</small>}</td>
                   <td><button className="price-button" onClick={(e) => { e.stopPropagation(); updatePrice(item); }}>{money(item.price, item.currency, 2)}</button><small className="quote-time">報價 {quoteTime(item.updatedAt)}</small></td>
-                  <td>{money(value, item.currency)}</td><td className={profit >= 0 ? "gain" : "loss"}>{money(profit, item.currency)}</td>
+                  <td>{money(displayValue, displayCurrency)}</td><td className={displayProfit >= 0 ? "gain" : "loss"}>{money(displayProfit, displayCurrency)}</td>
                   <td><span className={`pill ${roi >= 0 ? "up" : "down"}`}>{pct(roi)}</span></td>
                   <td><button className="refresh" disabled={loading === item.id} onClick={(e) => { e.stopPropagation(); refreshQuote(item); }} aria-label={`更新 ${item.symbol} 報價`}>{loading === item.id ? "…" : "↻"}</button><button className="edit" onClick={(e) => { e.stopPropagation(); beginEdit(item); }} aria-label={`編輯 ${item.symbol}`}>✎</button><button className="delete" onClick={(e) => { e.stopPropagation(); setHoldings((rows) => rows.filter((row) => row.id !== item.id)); }}>×</button></td>
                 </tr>;
