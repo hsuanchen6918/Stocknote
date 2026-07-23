@@ -251,14 +251,20 @@ export default function Home() {
   }
 
   const totalTwd = holdings.filter((h) => h.currency === "TWD").reduce((sum, h) => sum + h.price * h.shares, 0);
+  const costTwd = holdings.filter((h) => h.currency === "TWD").reduce((sum, h) => sum + h.cost, 0);
   const profitTwd = holdings.filter((h) => h.currency === "TWD").reduce((sum, h) => sum + h.price * h.shares - h.cost, 0);
+  const roiTwd = costTwd ? profitTwd / costTwd * 100 : 0;
   const twCount = holdings.filter((h) => h.currency === "TWD").length;
   const usTwdHoldings = holdings.filter((h) => h.currency === "USD" && h.inputCostCurrency === "TWD" && h.exchangeRate);
   const usUsdHoldings = holdings.filter((h) => h.currency === "USD" && h.inputCostCurrency !== "TWD");
   const totalUsTwd = usTwdHoldings.reduce((sum, h) => sum + h.price * h.shares * h.exchangeRate!, 0);
+  const costUsTwd = usTwdHoldings.reduce((sum, h) => sum + enteredTotalCost(h), 0);
   const profitUsTwd = usTwdHoldings.reduce((sum, h) => sum + h.price * h.shares * h.exchangeRate! - enteredTotalCost(h), 0);
   const totalUsUsd = usUsdHoldings.reduce((sum, h) => sum + h.price * h.shares, 0);
+  const costUsUsd = usUsdHoldings.reduce((sum, h) => sum + h.cost, 0);
   const profitUsUsd = usUsdHoldings.reduce((sum, h) => sum + h.price * h.shares - h.cost, 0);
+  const roiUsTwd = costUsTwd ? profitUsTwd / costUsTwd * 100 : 0;
+  const roiUsUsd = costUsUsd ? profitUsUsd / costUsUsd * 100 : 0;
   const delayedCount = holdings.filter((item) => isQuoteDelayed(getQuoteTimestamp(item), item.fetchedAt, item.marketState)).length;
   const closedCount = holdings.filter((item) => item.marketState === "closed").length;
   const allMarketsClosed = holdings.length > 0 && closedCount === holdings.length;
@@ -279,7 +285,7 @@ export default function Home() {
       </header>
 
       <section className="hero">
-        <div><p className="eyebrow">庫存儀表板</p><h1>搶救錢包</h1><p className="subtitle">追蹤台股與美股庫存，即時計算報酬；買入前，先看見加碼後的全貌。</p></div>
+        <div><p className="eyebrow">庫存儀表板</p><h1>搶救錢包</h1><p className="subtitle">追蹤台股與美股庫存，即時計算報酬</p></div>
         <div className="market-pulse"><span>AUTO REFRESH</span><strong>{quoteSummary}</strong><i>{latestFetchedAt ? `檢查 ${quoteTime(latestFetchedAt)}` : "每 1 分鐘更新"}</i></div>
       </section>
 
@@ -288,12 +294,12 @@ export default function Home() {
       <section className="summary-grid" aria-label="資產摘要">
         <article className="metric market-card tw-card">
           <div className="metric-title"><span className="market-icon" aria-hidden="true">🇹🇼</span><div><small>TAIWAN</small><b>台股庫存總覽</b></div></div>
-          <div className="market-stats"><div><span>目前市值</span><strong>{money(totalTwd, "TWD")}</strong></div><div><span>未實現損益</span><strong className={profitTwd >= 0 ? "gain" : "loss"}>{money(profitTwd, "TWD")}</strong></div></div>
+          <div className="market-stats"><div><span>目前市值</span><strong>{money(totalTwd, "TWD")}</strong></div><div><span>未實現損益</span><strong className={profitTwd >= 0 ? "gain" : "loss"}>{money(profitTwd, "TWD")}</strong></div><div><span>未實現報酬率</span><strong className={roiTwd >= 0 ? "gain" : "loss"}>{pct(roiTwd)}</strong></div></div>
           <small className="metric-footnote">共 {twCount} 檔台股 · 依最新庫存股價計算</small>
         </article>
         <article className="metric market-card us-card">
           <div className="metric-title"><span className="market-icon" aria-hidden="true">🇺🇸</span><div><small>UNITED STATES</small><b>美股庫存總覽</b></div></div>
-          <div className="market-stats"><div><span>目前市值</span><strong>{usTwdHoldings.length ? money(totalUsTwd, "TWD") : money(totalUsUsd, "USD")}</strong>{usTwdHoldings.length > 0 && usUsdHoldings.length > 0 && <small>另有 {money(totalUsUsd, "USD")}</small>}</div><div><span>未實現損益</span><strong className={(usTwdHoldings.length ? profitUsTwd : profitUsUsd) >= 0 ? "gain" : "loss"}>{usTwdHoldings.length ? money(profitUsTwd, "TWD") : money(profitUsUsd, "USD")}</strong>{usTwdHoldings.length > 0 && usUsdHoldings.length > 0 && <small className={profitUsUsd >= 0 ? "gain" : "loss"}>另有 {money(profitUsUsd, "USD")}</small>}</div></div>
+          <div className="market-stats"><div><span>目前市值</span><strong>{usTwdHoldings.length ? money(totalUsTwd, "TWD") : money(totalUsUsd, "USD")}</strong>{usTwdHoldings.length > 0 && usUsdHoldings.length > 0 && <small>另有 {money(totalUsUsd, "USD")}</small>}</div><div><span>未實現損益</span><strong className={(usTwdHoldings.length ? profitUsTwd : profitUsUsd) >= 0 ? "gain" : "loss"}>{usTwdHoldings.length ? money(profitUsTwd, "TWD") : money(profitUsUsd, "USD")}</strong>{usTwdHoldings.length > 0 && usUsdHoldings.length > 0 && <small className={profitUsUsd >= 0 ? "gain" : "loss"}>另有 {money(profitUsUsd, "USD")}</small>}</div><div><span>未實現報酬率</span><strong className={(usTwdHoldings.length ? roiUsTwd : roiUsUsd) >= 0 ? "gain" : "loss"}>{pct(usTwdHoldings.length ? roiUsTwd : roiUsUsd)}</strong>{usTwdHoldings.length > 0 && usUsdHoldings.length > 0 && <small className={roiUsUsd >= 0 ? "gain" : "loss"}>另有 {pct(roiUsUsd)}</small>}</div></div>
           <small className="metric-footnote">共 {usTwdHoldings.length + usUsdHoldings.length} 檔美股 · 依成本幣別分開計價</small>
         </article>
         <article className="metric action-card"><span className="action-icon" aria-hidden="true">＋</span><span>快速操作</span><strong>新增一筆庫存</strong><a href="#add">開始輸入 <b>→</b></a></article>
