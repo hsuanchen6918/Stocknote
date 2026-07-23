@@ -203,7 +203,11 @@ export default function Home() {
       const now = new Date().toISOString();
       const quoteAt = data.quoteTime || now;
       setHoldings((items) => items.map((row) => row.id === item.id ? { ...row, price: data.price!, name: data.name || row.name, currency: data.currency === "USD" ? "USD" : row.currency, exchangeRate: data.exchangeRate || row.exchangeRate, updatedAt: quoteAt, quoteTime: quoteAt, fetchedAt: data.fetchedAt || now, marketState: data.marketState ?? "unknown" } : row));
-      if (!options.silent) setNotice(`${item.symbol} 報價已更新`);
+      if (!options.silent) {
+        const isSameQuote = quoteAt === getQuoteTimestamp(item) && data.price === item.price;
+        const badge = quoteBadge(quoteAt, data.fetchedAt || now, data.marketState ?? "unknown");
+        setNotice(isSameQuote ? `${item.symbol} 已檢查，資料源尚未提供更新報價${badge ? `（${badge}）` : ""}` : `${item.symbol} 已取得最新可用報價${badge ? `（${badge}）` : ""}`);
+      }
     } catch (error) {
       if (!options.silent) setNotice(error instanceof Error ? `${error.message}，可直接點股價手動修改` : "報價更新失敗");
     } finally {
@@ -221,7 +225,7 @@ export default function Home() {
     await Promise.all(rows.map((item) => refreshQuote(item, { silent: true })));
     if (!options.silent) {
       setLoading(null);
-      setNotice(`已更新 ${rows.length} 檔股票報價`);
+      setNotice(`已檢查 ${rows.length} 檔股票報價`);
     }
   }, [refreshQuote]);
 
@@ -271,12 +275,12 @@ export default function Home() {
       <header className="topbar">
         <a className="brand" href="#"><span className="brand-mark">S</span><span>Stocknote</span></a>
         <nav><a href="#portfolio">投資組合</a><a href="#simulator">加碼試算</a></nav>
-        <div className={`status ${statusClass}`.trim()}><span className="live-dot" /> {quoteSummary}<small>{latestFetchedAt ? `抓取 ${quoteTime(latestFetchedAt)}` : "每 1 分鐘"}</small></div>
+        <div className={`status ${statusClass}`.trim()}><span className="live-dot" /> {quoteSummary}<small>{latestFetchedAt ? `檢查 ${quoteTime(latestFetchedAt)}` : "每 1 分鐘"}</small></div>
       </header>
 
       <section className="hero">
         <div><p className="eyebrow">庫存儀表板</p><h1>搶救錢包</h1><p className="subtitle">追蹤台股與美股庫存，即時計算報酬；買入前，先看見加碼後的全貌。</p></div>
-        <div className="market-pulse"><span>AUTO REFRESH</span><strong>{quoteSummary}</strong><i>{latestFetchedAt ? `抓取 ${quoteTime(latestFetchedAt)}` : "每 1 分鐘更新"}</i></div>
+        <div className="market-pulse"><span>AUTO REFRESH</span><strong>{quoteSummary}</strong><i>{latestFetchedAt ? `檢查 ${quoteTime(latestFetchedAt)}` : "每 1 分鐘更新"}</i></div>
       </section>
 
       {notice && <button className="notice" onClick={() => setNotice("")} aria-label="關閉通知">{notice}<span>×</span></button>}
@@ -315,7 +319,7 @@ export default function Home() {
                 return <tr key={item.id} className={selected?.id === item.id ? "selected" : ""} onClick={() => setSelectedId(item.id)}>
                   <td><div className="stock-name"><span>{item.symbol.replace(".TW", "")}</span><small>{item.name} · {item.currency}</small></div></td>
                   <td>{number(item.shares)}</td><td>{money(item.cost / item.shares, item.currency, 2)}<small className="quote-time">總成本 {money(enteredTotalCost(item), enteredCostCurrency(item))}</small>{(item.inputFee || item.inputOtherFee) && <small className="quote-time">含費用 {money((item.inputFee || 0) + (item.inputOtherFee || 0), enteredCostCurrency(item))}</small>}{showMarketInTwd && <small className="quote-time">市值依匯率 {item.exchangeRate!.toFixed(3)} 換算</small>}</td>
-                  <td><button className="price-button" onClick={(e) => { e.stopPropagation(); updatePrice(item); }}>{money(item.price, item.currency, 2)}</button><small className="quote-time">報價時間 {quoteTime(itemQuoteTime)}</small><small className="quote-time">本次抓取時間 {quoteTime(item.fetchedAt)}</small>{itemQuoteBadge && <span className={`quote-badge ${item.marketState === "closed" ? "closed" : "delayed"}`}>{itemQuoteBadge}</span>}</td>
+                  <td><button className="price-button" onClick={(e) => { e.stopPropagation(); updatePrice(item); }}>{money(item.price, item.currency, 2)}</button><small className="quote-time">最新報價時間 {quoteTime(itemQuoteTime)}</small><small className="quote-time">本次檢查時間 {quoteTime(item.fetchedAt)}</small>{itemQuoteBadge && <span className={`quote-badge ${item.marketState === "closed" ? "closed" : "delayed"}`}>{itemQuoteBadge}</span>}</td>
                   <td>{money(displayValue, displayCurrency)}</td><td className={displayProfit >= 0 ? "gain" : "loss"}>{money(displayProfit, displayCurrency)}</td>
                   <td><span className={`pill ${roi >= 0 ? "up" : "down"}`}>{pct(roi)}</span></td>
                   <td><button className="refresh" disabled={loading === item.id || loading === "all"} onClick={(e) => { e.stopPropagation(); refreshQuote(item); }} aria-label={`更新 ${item.symbol} 報價`}>{loading === item.id ? "…" : "↻"}</button><button className="edit" onClick={(e) => { e.stopPropagation(); beginEdit(item); }} aria-label={`編輯 ${item.symbol}`}>✎</button><button className="delete" onClick={(e) => { e.stopPropagation(); setHoldings((rows) => rows.filter((row) => row.id !== item.id)); }}>×</button></td>
@@ -331,7 +335,7 @@ export default function Home() {
         <form id="add" className="panel add-panel" onSubmit={addHolding}>
           <div className="panel-title"><span>{editingId ? "✎" : "＋"}</span><div><p className="eyebrow">{editingId ? "EDIT HOLDING" : "新增資料"}</p><h2>{editingId ? "編輯股票庫存" : "輸入現有庫存"}</h2></div>{editingId && <button className="cancel-edit" type="button" onClick={resetForm}>取消編輯</button>}</div>
           <label>股票名稱或代號（二擇一）<div className="lookup-row"><input value={form.query} onChange={(e) => setForm({ ...form, query: e.target.value, symbol: "", name: "", price: "", quoteTime: "", fetchedAt: "", marketState: "unknown" })} onBlur={() => { if (form.query && !form.symbol) void resolveStock(); }} placeholder="例如：台積電、2330、Apple 或 AAPL" /><button type="button" onClick={() => void resolveStock()} disabled={loading === "lookup"}>{loading === "lookup" ? "搜尋中…" : "搜尋即時股價"}</button></div><small>輸入其中一項後，系統會自動對應股票名稱、代號、幣別及最新價格</small></label>
-          {form.symbol && form.price && <div className="lookup-result"><div><span>已辨識股票</span><strong>{form.name}</strong><small>{form.symbol} · {form.currency}</small><small>報價時間 {quoteTime(form.quoteTime)}</small></div><div><span>最新市場價格</span><strong>{money(Number(form.price), form.currency, 2)}</strong><small>{form.currency === "USD" && form.exchangeRate ? `匯率 1 USD = ${form.exchangeRate.toFixed(3)} TWD` : "加入時會再確認一次"}</small><small>本次抓取時間 {quoteTime(form.fetchedAt)}</small>{quoteBadge(form.quoteTime, form.fetchedAt, form.marketState) && <small className="lookup-warning">{quoteBadge(form.quoteTime, form.fetchedAt, form.marketState)}</small>}</div></div>}
+          {form.symbol && form.price && <div className="lookup-result"><div><span>已辨識股票</span><strong>{form.name}</strong><small>{form.symbol} · {form.currency}</small><small>最新報價時間 {quoteTime(form.quoteTime)}</small></div><div><span>最新市場價格</span><strong>{money(Number(form.price), form.currency, 2)}</strong><small>{form.currency === "USD" && form.exchangeRate ? `匯率 1 USD = ${form.exchangeRate.toFixed(3)} TWD` : "加入時會再確認一次"}</small><small>本次檢查時間 {quoteTime(form.fetchedAt)}</small>{quoteBadge(form.quoteTime, form.fetchedAt, form.marketState) && <small className="lookup-warning">{quoteBadge(form.quoteTime, form.fetchedAt, form.marketState)}</small>}</div></div>}
           <div className="two-col"><label>庫存股數<input type="number" min="0" step="any" value={form.shares} onChange={(e) => setForm({ ...form, shares: e.target.value })} placeholder="1000" /></label><label>買入股票成本（未含費用）<div className="cost-input-row"><input type="number" min="0" step="any" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} placeholder={form.costCurrency === "TWD" ? "例如 920000" : "例如 2280"} />{form.currency === "USD" ? <select aria-label="成本幣別" value={form.costCurrency} onChange={(e) => setForm({ ...form, costCurrency: e.target.value as "TWD" | "USD" })}><option value="USD">美元 USD</option><option value="TWD">台幣 TWD</option></select> : <span>台幣 TWD</span>}</div>{form.currency === "USD" && form.costCurrency === "TWD" && <small>總成本與平均成本會維持以台幣顯示；系統僅在計算美股損益時使用匯率換算。</small>}</label></div>
           <div className="fees-box"><label className="fee-toggle"><input type="checkbox" checked={form.hasFee} onChange={(e) => setForm({ ...form, hasFee: e.target.checked })} />有手續費</label><label className="fee-toggle"><input type="checkbox" checked={form.hasOtherFee} onChange={(e) => setForm({ ...form, hasOtherFee: e.target.checked })} />有其他費用</label></div>
           {(form.hasFee || form.hasOtherFee) && <div className="two-col fee-inputs">{form.hasFee && <label>手續費<input type="number" min="0" step="any" value={form.fee} onChange={(e) => setForm({ ...form, fee: e.target.value })} placeholder="0" /></label>}{form.hasOtherFee && <label>其他費用（稅、平台費等）<input type="number" min="0" step="any" value={form.otherFee} onChange={(e) => setForm({ ...form, otherFee: e.target.value })} placeholder="0" /></label>}</div>}
