@@ -317,7 +317,7 @@ export default function Home() {
                 const itemQuoteTime = getQuoteTimestamp(item);
                 const itemQuoteBadge = quoteBadge(itemQuoteTime, item.fetchedAt, item.marketState);
                 return <tr key={item.id} className={selected?.id === item.id ? "selected" : ""} onClick={() => setSelectedId(item.id)}>
-                  <td><div className="stock-name"><span>{item.symbol.replace(".TW", "")}</span><small>{item.name} · {item.currency}</small></div></td>
+                  <td><div className="stock-name"><span>{item.symbol.replace(/\.(TW|TWO)$/, "")}</span><small>{item.name} · {item.currency}</small></div></td>
                   <td>{number(item.shares)}</td><td>{money(item.cost / item.shares, item.currency, 2)}<small className="quote-time">總成本 {money(enteredTotalCost(item), enteredCostCurrency(item))}</small>{(item.inputFee || item.inputOtherFee) && <small className="quote-time">含費用 {money((item.inputFee || 0) + (item.inputOtherFee || 0), enteredCostCurrency(item))}</small>}{showMarketInTwd && <small className="quote-time">市值依匯率 {item.exchangeRate!.toFixed(3)} 換算</small>}</td>
                   <td><button className="price-button" onClick={(e) => { e.stopPropagation(); updatePrice(item); }}>{money(item.price, item.currency, 2)}</button><small className="quote-time">最新報價時間 {quoteTime(itemQuoteTime)}</small><small className="quote-time">本次檢查時間 {quoteTime(item.fetchedAt)}</small>{itemQuoteBadge && <span className={`quote-badge ${item.marketState === "closed" ? "closed" : "delayed"}`}>{itemQuoteBadge}</span>}</td>
                   <td>{money(displayValue, displayCurrency)}</td><td className={displayProfit >= 0 ? "gain" : "loss"}>{money(displayProfit, displayCurrency)}</td>
