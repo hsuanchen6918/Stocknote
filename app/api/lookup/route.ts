@@ -18,6 +18,24 @@ type TaiwanCompany = {
   market: "TW" | "TWO";
 };
 
+type TradingPeriod = {
+  start?: number;
+  end?: number;
+};
+
+type ChartMeta = {
+  symbol?: string;
+  regularMarketPrice?: number;
+  regularMarketTime?: number;
+  shortName?: string;
+  longName?: string;
+  currency?: string;
+  exchangeName?: string;
+  currentTradingPeriod?: {
+    regular?: TradingPeriod;
+  };
+};
+
 const taiwanCompanies = taiwanCompaniesData as TaiwanCompany[];
 
 function normalizeQuery(value: string) {
@@ -34,9 +52,16 @@ async function getLiveQuote(symbol: string) {
   });
   if (!response.ok) return null;
   const json = await response.json() as {
-    chart?: { result?: Array<{ meta?: { symbol?: string; regularMarketPrice?: number; regularMarketTime?: number; shortName?: string; longName?: string; currency?: string; exchangeName?: string } }> };
+    chart?: { result?: Array<{ meta?: ChartMeta }> };
   };
   return json.chart?.result?.[0]?.meta ?? null;
+}
+
+function marketState(meta: ChartMeta) {
+  const regular = meta.currentTradingPeriod?.regular;
+  if (!regular?.start || !regular?.end) return "unknown";
+  const now = Math.floor(Date.now() / 1000);
+  return now >= regular.start && now <= regular.end ? "open" : "closed";
 }
 
 export async function GET(request: NextRequest) {
@@ -74,16 +99,19 @@ export async function GET(request: NextRequest) {
 
     if (!result?.symbol) return NextResponse.json({ error: "找不到符合的股票" }, { status: 404 });
     const quote = await getLiveQuote(result.symbol);
-    if (!quote?.regularMarketPrice) return NextResponse.json({ error: "找到股票，但目前沒有可用報價" }, { status: 404 });
+    if (typeof quote?.regularMarketPrice !== "number") return NextResponse.json({ error: "找到股票，但目前沒有可用報價" }, { status: 404 });
 
     const symbol = quote.symbol || result.symbol;
     const isTaiwan = symbol.endsWith(".TW") || symbol.endsWith(".TWO");
     const exchangeQuote = !isTaiwan && quote.currency === "USD" ? await getLiveQuote("TWD=X") : null;
+    const fetchedAt = new Date().toISOString();
     return NextResponse.json({
       symbol,
       name: isTaiwan ? (result.shortname || result.longname || quote.shortName || symbol) : (result.longname || result.shortname || quote.longName || quote.shortName || symbol),
       price: quote.regularMarketPrice,
       quoteTime: quote.regularMarketTime ? new Date(quote.regularMarketTime * 1000).toISOString() : new Date().toISOString(),
+      fetchedAt,
+      marketState: marketState(quote),
       currency: quote.currency === "USD" ? "USD" : isTaiwan ? "TWD" : quote.currency,
       exchangeRate: exchangeQuote?.regularMarketPrice,
       exchange: quote.exchangeName || result.exchange,
