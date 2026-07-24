@@ -124,7 +124,7 @@ export default function Home() {
       const data = await response.json() as QuoteLookup;
       if (!response.ok || !data.symbol || !data.price) throw new Error(data.error || "找不到符合的股票");
       const resolved = { symbol: data.symbol, name: data.name || data.symbol, price: data.price, currency: data.currency === "USD" ? "USD" as const : "TWD" as const, quoteTime: data.quoteTime, fetchedAt: data.fetchedAt, marketState: data.marketState ?? "unknown" as MarketState, exchangeRate: data.exchangeRate || 0 };
-      setForm((current) => ({ ...current, ...resolved, costCurrency: current.symbol ? current.costCurrency : resolved.currency }));
+      setForm((current) => ({ ...current, ...resolved, price: String(resolved.price), quoteTime: resolved.quoteTime ?? "", fetchedAt: resolved.fetchedAt ?? "", costCurrency: current.symbol ? current.costCurrency : resolved.currency }));
       setNotice(`已找到 ${resolved.name}（${resolved.symbol}），即時股價 ${money(resolved.price, resolved.currency, 2)}`);
       return resolved;
     } catch (error) {
