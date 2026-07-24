@@ -46,25 +46,37 @@ footer{max-width:1280px;margin:0 auto;padding:26px 28px 45px;border-top:1px soli
   .table-wrap{overflow:visible;border:0;border-radius:0;background:transparent;}
   .table-wrap table{width:100%;min-width:0;border-collapse:separate;border-spacing:0;}
   .table-wrap thead{display:none;}
-  .table-wrap tbody{display:grid;gap:14px;}
-  .table-wrap tr{display:block;border:1px solid var(--line);border-radius:12px;background:var(--card);padding:12px 14px;box-shadow:0 10px 28px rgba(31,43,40,.05);}
+  .table-wrap tbody{display:grid;gap:8px;}
+  .table-wrap tr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;grid-template-areas:"stock stock roi" "value profit actions" "shares price avg";align-items:start;gap:7px 10px;border:1px solid var(--line);border-radius:10px;background:var(--card);padding:10px 12px;box-shadow:0 5px 16px rgba(31,43,40,.04);}
   .table-wrap tbody tr:hover,.table-wrap tbody tr.selected{background:#eef4f0;border-color:#bdd2ca;}
-  .table-wrap td{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:11px 0;border-bottom:1px solid #e5e8e2;font-size:14px;text-align:right;}
-  .table-wrap td:last-child{border-bottom:0;}
-  .table-wrap td::before{content:"";flex:0 0 auto;color:var(--muted);font-size:11px;font-weight:800;letter-spacing:.6px;text-align:left;white-space:nowrap;}
-  .table-wrap td:nth-child(1){display:block;text-align:left;padding-top:4px;}
+  .table-wrap td{min-width:0;padding:0;border-bottom:0;font-size:12px;line-height:1.35;text-align:left;}
+  .table-wrap td::before{display:block;margin-bottom:2px;color:var(--muted);font-size:9px;font-weight:800;letter-spacing:.5px;white-space:nowrap;}
+  .table-wrap td:nth-child(1){grid-area:stock;display:block;min-width:0;padding-right:4px;}
   .table-wrap td:nth-child(1)::before{display:none;}
-  .table-wrap td:nth-child(2)::before{content:"庫存股數";}
-  .table-wrap td:nth-child(3)::before{content:"平均成本";}
-  .table-wrap td:nth-child(4)::before{content:"目前股價";}
-  .table-wrap td:nth-child(5)::before{content:"目前市值";}
-  .table-wrap td:nth-child(6)::before{content:"未實現損益";}
-  .table-wrap td:nth-child(7)::before{content:"報酬率";}
-  .table-wrap td:nth-child(8){justify-content:flex-end;gap:8px;padding-top:12px;}
-  .table-wrap td:nth-child(8)::before{content:"操作";margin-right:auto;}
-  .table-wrap .empty{display:block;width:100%;border:1px dashed var(--line);border-radius:12px;background:var(--card);text-align:center!important;}
+  .table-wrap td:nth-child(2){grid-area:shares;}
+  .table-wrap td:nth-child(2)::before{content:"股數";}
+  .table-wrap td:nth-child(3){grid-area:avg;}
+  .table-wrap td:nth-child(3)::before{content:"均價";}
+  .table-wrap td:nth-child(4){grid-area:price;}
+  .table-wrap td:nth-child(4)::before{content:"股價";}
+  .table-wrap td:nth-child(5){grid-area:value;}
+  .table-wrap td:nth-child(5)::before{content:"市值";}
+  .table-wrap td:nth-child(6){grid-area:profit;font-weight:800;}
+  .table-wrap td:nth-child(6)::before{content:"損益";}
+  .table-wrap td:nth-child(7){grid-area:roi;justify-self:end;}
+  .table-wrap td:nth-child(7)::before{display:none;}
+  .table-wrap td:nth-child(8){grid-area:actions;display:flex;justify-content:flex-end;gap:3px;align-self:center;}
+  .table-wrap td:nth-child(8)::before{display:none;}
+  .table-wrap .empty{display:block;width:100%;border:1px dashed var(--line);border-radius:10px;background:var(--card);text-align:center!important;}
   .table-wrap .empty::before{display:none;}
-  .stock-name span{font-size:16px;}
-  .stock-name small{font-size:11px;}
-  .quote-time{white-space:normal;text-align:right;}
+  .stock-name{gap:2px;min-width:0;}
+  .stock-name span{font-size:15px;}
+  .stock-name small{overflow:hidden;color:#7c8581;font-size:10px;text-overflow:ellipsis;white-space:nowrap;}
+  .pill{padding:5px 7px;font-size:10px;white-space:nowrap;}
+  .price-button{font-size:12px;}
+  .quote-time{margin-top:2px;font-size:8px;line-height:1.25;white-space:normal;}
+  .table-wrap td:nth-child(3) .quote-time{display:none;}
+  .table-wrap td:nth-child(4) .quote-time:nth-of-type(n+2){display:none;}
+  .quote-badge{margin-top:3px;padding:3px 6px;font-size:8px;}
+  .refresh,.edit,.delete{padding:4px;font-size:15px;}
 }
