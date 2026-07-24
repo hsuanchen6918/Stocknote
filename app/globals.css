@@ -110,3 +110,29 @@ footer{max-width:1280px;margin:0 auto;padding:26px 28px 45px;border-top:1px soli
   .guide-actions{display:grid;grid-template-columns:1fr 1fr;margin-top:16px;}
   .guide-primary,.guide-secondary{text-align:center;padding:12px 10px;}
 }
+.simulator-panel label{color:#304743;}
+.simulator-panel input,.simulator-panel select{color:#063d35;font-weight:800;}
+.result-card{background:linear-gradient(135deg,#04342f 0%,#07574c 48%,#0b7668 100%);border:1px solid #6adbc3;box-shadow:0 18px 45px rgba(4,52,47,.2);color:white;}
+.result-card>p,.result-main span,.result-grid span{color:#d1fff1;}
+.result-main{border-bottom-color:rgba(209,255,241,.28);}
+.result-main strong{color:#fff2a6;text-shadow:0 0 18px rgba(255,242,166,.35);}
+.result-grid div{border:1px solid rgba(209,255,241,.22);border-radius:8px;background:rgba(255,255,255,.08);padding:10px;}
+.result-grid b{color:white;font-size:13px;font-weight:900;}
+.result-card .gain{color:#ffb4aa!important;}
+.result-card .loss{color:#9af4cd!important;}
+@media(max-width:800px){
+  .topbar{height:auto;min-height:74px;padding:10px 14px 9px;flex-wrap:wrap;gap:8px 10px;align-items:center;}
+  .brand{gap:9px;font-size:19px;}
+  .brand-mark{width:30px;height:30px;font-size:16px;}
+  .guide-trigger{order:2;margin-left:auto;padding:7px 10px;font-size:11px;}
+  .topbar .status{order:3;margin-left:0;padding:7px 10px;font-size:11px;gap:5px;max-width:100%;}
+  .topbar .status small{font-size:9px;}
+  .status .live-dot{margin-right:4px;}
+  .topbar nav{order:4;display:flex;width:100%;margin-left:0;gap:8px;}
+  .topbar nav a{flex:1;border:1px solid #d4dbd7;border-radius:999px;background:rgba(251,250,246,.82);padding:9px 8px;text-align:center;font-size:12px;font-weight:800;}
+  .hero{padding-top:34px;}
+}
+@media(max-width:380px){
+  .topbar .status{width:100%;justify-content:center;}
+  .guide-trigger{padding-inline:9px;}
+}
