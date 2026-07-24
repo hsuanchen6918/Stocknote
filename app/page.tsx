@@ -105,6 +105,23 @@ export default function Home() {
   }, [holdings, ready]);
 
   useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    if (!window.isSecureContext && window.location.hostname !== "localhost") return;
+
+    const registerServiceWorker = () => {
+      void navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+    };
+
+    if (document.readyState === "complete") {
+      registerServiceWorker();
+      return;
+    }
+
+    window.addEventListener("load", registerServiceWorker, { once: true });
+    return () => window.removeEventListener("load", registerServiceWorker);
+  }, []);
+
+  useEffect(() => {
     if (!ready) return;
     const guideTimer = window.setTimeout(() => {
       if (localStorage.getItem(GUIDE_STORAGE_KEY) !== "true") setShowGuide(true);
