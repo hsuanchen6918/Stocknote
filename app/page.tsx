@@ -285,7 +285,7 @@ export default function Home() {
       </header>
 
       <section className="hero">
-        <div><p className="eyebrow">庫存儀表板</p><h1>搶救錢包</h1><p className="subtitle">追蹤台股與美股庫存，即時計算報酬</p></div>
+        <div><p className="eyebrow">庫存儀表板</p><h1>搶救錢包</h1><p className="subtitle">台股與美股庫存管理，即時報價，模擬持續買入計算報酬</p></div>
         <div className="market-pulse"><span>AUTO REFRESH</span><strong>{quoteSummary}</strong><i>{latestFetchedAt ? `檢查 ${quoteTime(latestFetchedAt)}` : "每 1 分鐘更新"}</i></div>
       </section>
 
@@ -350,7 +350,7 @@ export default function Home() {
         </form>
 
         <section id="simulator" className="panel simulator-panel">
-          <div className="panel-title"><span>↗</span><div><p className="eyebrow">WHAT IF?</p><h2>模擬持續買入</h2></div></div>
+          <div className="panel-title"><span>↗</span><div><p className="eyebrow">HOW TO搶救錢包?</p><h2>持續買入試算</h2></div></div>
           {selected && simulation ? <>
             <label>選擇庫存<select value={selected.id} onChange={(e) => setSelectedId(e.target.value)}>{holdings.map((h) => <option key={h.id} value={h.id}>{h.symbol} · {h.name}</option>)}</select></label>
             <div className="current-line"><span>目前 {number(selected.shares)} 股</span><span>平均 {money(selected.cost / selected.shares, selected.currency, 2)}</span><span>現價 {money(selected.price, selected.currency, 2)}</span></div>
