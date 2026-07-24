@@ -16,6 +16,7 @@ nav a { color:#4d5754; text-decoration:none; font-size:14px; }
 .status small{color:var(--muted);font-size:10px;}
 .live-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:#20a56f; margin-right:5px; box-shadow:0 0 0 4px #d9eee5; }
 .status.is-delayed .live-dot{background:#d18a22;box-shadow:0 0 0 4px #f3e5c9}.status.is-closed .live-dot{background:#8a928f;box-shadow:0 0 0 4px #e4e7e5}
+.guide-trigger{margin-left:22px;border:1px solid #bdc5c1;background:var(--card);border-radius:999px;padding:9px 13px;color:#40504c;font-size:12px;font-weight:800;cursor:pointer;}
 .chevron { margin-left:8px; color:var(--muted); }
 .hero { max-width:1420px; margin:auto; padding:72px 5vw 54px; display:flex; align-items:flex-end; justify-content:space-between; }
 .eyebrow { margin:0 0 12px; color:var(--teal); font-size:11px; font-weight:800; letter-spacing:2px; }
@@ -25,6 +26,20 @@ h1 em { color:var(--teal); font-weight:500; }
 .market-pulse { display:grid; grid-template-columns:auto auto; gap:5px 22px; border-left:1px solid var(--line); padding:8px 0 8px 24px; font-size:11px; }
 .market-pulse span { color:var(--muted); letter-spacing:1.5px; }.market-pulse strong{font:600 17px Georgia;}.market-pulse i{grid-column:2;color:#16865c;font-style:normal;}
 .notice { position:fixed; z-index:50; right:24px; top:90px; border:0; color:white; background:var(--ink); box-shadow:0 10px 30px #17201f30; border-radius:10px; padding:13px 16px; cursor:pointer; }.notice span{margin-left:20px;color:#aab1ae;}
+.guide-backdrop{position:fixed;inset:0;z-index:80;display:grid;place-items:center;padding:24px;background:rgba(18,27,25,.46);backdrop-filter:blur(10px);}
+.guide-modal{position:relative;width:min(920px,100%);max-height:calc(100vh - 48px);overflow:auto;border:1px solid #dce2df;border-radius:18px;background:linear-gradient(135deg,#fffefa 0%,#f6f4ed 62%,#e8f1ec 100%);box-shadow:0 30px 90px rgba(12,28,25,.28);padding:34px;}
+.guide-close{position:absolute;right:18px;top:16px;border:0;background:#edf1ec;color:#5b6662;width:32px;height:32px;border-radius:50%;font-size:20px;line-height:1;cursor:pointer;}
+.guide-modal h2{margin:0;font:500 clamp(30px,4vw,48px)/1.1 Georgia,"Noto Serif TC",serif;letter-spacing:-1.5px;}
+.guide-copy{max-width:680px;margin:15px 0 24px;color:var(--muted);font-size:14px;line-height:1.8;}
+.guide-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}
+.guide-steps article{border:1px solid #d8dfda;border-radius:12px;background:rgba(255,255,255,.62);padding:18px;min-height:170px;}
+.guide-steps span{display:inline-grid;place-items:center;width:34px;height:34px;margin-bottom:16px;border-radius:10px;background:var(--teal);color:white;font:700 12px Georgia;}
+.guide-steps h3{margin:0 0 9px;font-size:16px;}
+.guide-steps p{margin:0;color:#69736f;font-size:12px;line-height:1.7;}
+.guide-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;}
+.guide-primary,.guide-secondary{border-radius:8px;padding:12px 16px;font-size:12px;font-weight:800;cursor:pointer;text-decoration:none;}
+.guide-primary{border:0;background:var(--teal);color:white;}
+.guide-secondary{border:1px solid #bdc5c1;background:transparent;color:#40504c;}
 .summary-grid { max-width:1420px; margin:0 auto; padding:0 5vw 68px; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) .62fr; gap:12px; }
 .metric { min-height:190px; border:1px solid var(--line); border-radius:12px; background:var(--card); padding:26px; display:flex; flex-direction:column; }.metric>span{font-size:12px;color:var(--muted);}.metric>strong{font:500 35px Georgia;margin:18px 0 10px;}.metric>small{font-size:11px;color:#89908e;}.metric-title{display:flex;align-items:center;gap:12px}.metric-title>div{display:flex;flex-direction:column;gap:3px}.metric-title small{font-size:9px;letter-spacing:1.4px;color:#8a9490}.metric-title b{font:500 17px Georgia,"Noto Serif TC",serif;color:var(--ink)}.market-icon{width:38px;height:38px;display:grid;place-items:center;border-radius:11px;background:#eef2ec;font-size:20px;box-shadow:inset 0 0 0 1px #dfe5e0}.us-card .market-icon{background:#edf1f7;box-shadow:inset 0 0 0 1px #dce3ee}.market-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:22px 0 14px;padding-top:18px;border-top:1px solid var(--line)}.market-stats>div{display:flex;min-width:0;flex-direction:column;gap:7px}.market-stats span{font-size:10px;color:var(--muted)}.market-stats strong{font:500 20px Georgia;white-space:nowrap}.market-stats small{font-size:9px;color:#7e8985}.metric-footnote{margin-top:auto}.action-card{background:var(--teal);color:white;}.action-card>span{color:#bad7d1}.action-card .action-icon{width:36px;height:36px;display:grid;place-items:center;margin-bottom:16px;border:1px solid #ffffff40;border-radius:10px;color:white;font-size:22px}.action-card>strong{font:500 21px Georgia}.action-card>a{margin-top:auto;color:white;text-decoration:none;font-size:12px}.action-card a b{float:right;font-size:18px}
 .gain { color:var(--red)!important; }.loss { color:var(--teal)!important; }
@@ -79,4 +94,19 @@ footer{max-width:1280px;margin:0 auto;padding:26px 28px 45px;border-top:1px soli
   .table-wrap td:nth-child(4) .quote-time:nth-of-type(n+2){display:none;}
   .quote-badge{margin-top:3px;padding:3px 6px;font-size:8px;}
   .refresh,.edit,.delete{padding:4px;font-size:15px;}
+}
+@media(max-width:800px){
+  .guide-trigger{margin-left:auto;padding:8px 11px;font-size:11px;}
+  .topbar .status{margin-left:8px;}
+  .guide-backdrop{align-items:end;padding:12px;}
+  .guide-modal{width:100%;max-height:86vh;border-radius:16px;padding:24px 18px 18px;}
+  .guide-modal h2{font-size:30px;letter-spacing:-1px;}
+  .guide-copy{font-size:13px;margin-bottom:18px;}
+  .guide-steps{grid-template-columns:1fr;gap:8px;}
+  .guide-steps article{min-height:0;padding:14px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;}
+  .guide-steps span{grid-row:1/3;margin:0;width:30px;height:30px;border-radius:8px;}
+  .guide-steps h3{margin:0;font-size:14px;}
+  .guide-steps p{font-size:11px;line-height:1.55;}
+  .guide-actions{display:grid;grid-template-columns:1fr 1fr;margin-top:16px;}
+  .guide-primary,.guide-secondary{text-align:center;padding:12px 10px;}
 }

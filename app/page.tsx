@@ -42,6 +42,7 @@ const seed: Holding[] = [
 
 const REFRESH_INTERVAL_MS = 60_000;
 const DELAY_WARNING_MS = 5 * 60_000;
+const GUIDE_STORAGE_KEY = "stocknote-guide-seen";
 const money = (value: number, currency: "TWD" | "USD", digits = 0) =>
   new Intl.NumberFormat("zh-TW", { style: "currency", currency, maximumFractionDigits: currency === "USD" ? Math.max(2, digits) : digits }).format(value || 0);
 const number = (value: number) => new Intl.NumberFormat("zh-TW", { maximumFractionDigits: 4 }).format(value || 0);
@@ -81,6 +82,7 @@ export default function Home() {
   const [targetPrice, setTargetPrice] = useState("");
   const [loading, setLoading] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
+  const [showGuide, setShowGuide] = useState(false);
   const holdingsRef = useRef<Holding[]>([]);
 
   useEffect(() => {
@@ -101,6 +103,31 @@ export default function Home() {
   useEffect(() => {
     if (ready) localStorage.setItem("stocknote-holdings", JSON.stringify(holdings));
   }, [holdings, ready]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const guideTimer = window.setTimeout(() => {
+      if (localStorage.getItem(GUIDE_STORAGE_KEY) !== "true") setShowGuide(true);
+    }, 0);
+    return () => window.clearTimeout(guideTimer);
+  }, [ready]);
+
+  useEffect(() => {
+    if (!showGuide) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        localStorage.setItem(GUIDE_STORAGE_KEY, "true");
+        setShowGuide(false);
+      }
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [showGuide]);
+
+  function closeGuide() {
+    localStorage.setItem(GUIDE_STORAGE_KEY, "true");
+    setShowGuide(false);
+  }
 
   const selected = holdings.find((item) => item.id === selectedId) ?? holdings[0];
   const simulation = useMemo(() => {
@@ -281,8 +308,24 @@ export default function Home() {
       <header className="topbar">
         <a className="brand" href="#"><span className="brand-mark">S</span><span>Stocknote</span></a>
         <nav><a href="#portfolio">投資組合</a><a href="#simulator">加碼試算</a></nav>
+        <button className="guide-trigger" type="button" onClick={() => setShowGuide(true)}>導引</button>
         <div className={`status ${statusClass}`.trim()}><span className="live-dot" /> {quoteSummary}<small>{latestFetchedAt ? `檢查 ${quoteTime(latestFetchedAt)}` : "每 1 分鐘"}</small></div>
       </header>
+
+      {showGuide && <div className="guide-backdrop" role="dialog" aria-modal="true" aria-labelledby="guide-title" onClick={closeGuide}>
+        <section className="guide-modal" onClick={(event) => event.stopPropagation()}>
+          <button className="guide-close" type="button" onClick={closeGuide} aria-label="關閉導引">×</button>
+          <p className="eyebrow">WELCOME GUIDE</p>
+          <h2 id="guide-title">3 步驟開始搶救錢包</h2>
+          <p className="guide-copy">先建立庫存，再看即時損益，最後用加碼與目標價試算下一步。資料會存在你的裝置裡，重新開啟也能繼續使用。</p>
+          <div className="guide-steps">
+            <article><span>01</span><h3>新增股票庫存</h3><p>輸入股票名稱或代號，台股/美股會自動查找名稱與報價，再填入股數、成本與費用。</p></article>
+            <article><span>02</span><h3>查看即時損益</h3><p>庫存總覽會分開顯示台股與美股，包含目前市值、未實現損益與報酬率。</p></article>
+            <article><span>03</span><h3>加碼與目標價試算</h3><p>選一檔庫存，輸入想買的股價與股數，再輸入預期股價估算可能獲利。</p></article>
+          </div>
+          <div className="guide-actions"><a className="guide-primary" href="#add" onClick={closeGuide}>開始新增庫存</a><button className="guide-secondary" type="button" onClick={closeGuide}>我知道了</button></div>
+        </section>
+      </div>}
 
       <section className="hero">
         <div><p className="eyebrow">庫存儀表板</p><h1>搶救錢包</h1><p className="subtitle">台股與美股庫存管理，即時報價，模擬持續買入計算報酬</p></div>
