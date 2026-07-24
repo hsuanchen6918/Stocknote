@@ -42,3 +42,29 @@ input,select { width:100%; border:1px solid #cfd5d1; background:#fffefa; color:v
 .simulator-panel{background:#eef2ec}.current-line{display:flex;gap:8px;margin:-5px 0 22px;flex-wrap:wrap}.current-line span{background:#dfe7e0;padding:7px 10px;border-radius:5px;color:#53615c;font-size:10px}.result-card{background:var(--ink);color:white;border-radius:10px;padding:24px;margin:6px 0 18px}.result-card>p{color:#aab6b1;font-size:10px;letter-spacing:1px;margin:0 0 18px}.result-main{display:flex;align-items:end;justify-content:space-between;border-bottom:1px solid #3b4542;padding-bottom:18px}.result-main span{font-size:12px;color:#b8c1be}.result-main strong{font:500 31px Georgia}.result-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding-top:18px}.result-grid div{display:flex;flex-direction:column;gap:7px}.result-grid span{color:#98a49f;font-size:9px}.result-grid b{font-size:12px}.target-box{display:grid;grid-template-columns:1fr 1fr;gap:24px;border:1px solid #c9d4cd;border-radius:9px;padding:20px;background:#f8faf5}.target-box label{margin:0}.target-box>div{display:flex;flex-direction:column;border-left:1px solid var(--line);padding-left:24px}.target-box span{font-size:10px;color:var(--muted)}.target-box strong{font:500 25px Georgia;margin:7px 0}.target-box small{font-size:9px;color:#89908d}.simulator-empty{padding:80px 20px!important;}
 footer{max-width:1280px;margin:0 auto;padding:26px 28px 45px;border-top:1px solid var(--line);display:flex;justify-content:space-between;color:#858c89;font-size:10px;letter-spacing:.5px}footer p{margin:0;}
 @media(max-width:800px){.topbar{padding:0 20px}.topbar nav{display:none}.hero{padding:48px 22px 38px}.hero .market-pulse{display:none}h1{font-size:46px;letter-spacing:-2px}.summary-grid{padding:0 20px 48px;grid-template-columns:1fr}.metric,.metric:first-child,.metric:last-child{border:1px solid var(--line);border-radius:10px}.section-block{padding:42px 20px}.workbench{grid-template-columns:1fr;padding:0 20px;margin:48px auto}.panel{padding:24px}.two-col,.lookup-result{grid-template-columns:1fr}.lookup-row{grid-template-columns:1fr}.lookup-row button{padding:12px}.fees-box{flex-direction:column;gap:12px}.result-grid{grid-template-columns:1fr 1fr}.target-box{grid-template-columns:1fr}.target-box>div{border-left:0;border-top:1px solid var(--line);padding:18px 0 0}.outline{display:none}footer{margin:0 20px;padding-left:0;padding-right:0;display:block;line-height:1.7}.status{font-size:0}.status .live-dot{margin:0}.chevron{display:none}}
+@media(max-width:800px){
+  .table-wrap{overflow:visible;border:0;border-radius:0;background:transparent;}
+  .table-wrap table{width:100%;min-width:0;border-collapse:separate;border-spacing:0;}
+  .table-wrap thead{display:none;}
+  .table-wrap tbody{display:grid;gap:14px;}
+  .table-wrap tr{display:block;border:1px solid var(--line);border-radius:12px;background:var(--card);padding:12px 14px;box-shadow:0 10px 28px rgba(31,43,40,.05);}
+  .table-wrap tbody tr:hover,.table-wrap tbody tr.selected{background:#eef4f0;border-color:#bdd2ca;}
+  .table-wrap td{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:11px 0;border-bottom:1px solid #e5e8e2;font-size:14px;text-align:right;}
+  .table-wrap td:last-child{border-bottom:0;}
+  .table-wrap td::before{content:"";flex:0 0 auto;color:var(--muted);font-size:11px;font-weight:800;letter-spacing:.6px;text-align:left;white-space:nowrap;}
+  .table-wrap td:nth-child(1){display:block;text-align:left;padding-top:4px;}
+  .table-wrap td:nth-child(1)::before{display:none;}
+  .table-wrap td:nth-child(2)::before{content:"庫存股數";}
+  .table-wrap td:nth-child(3)::before{content:"平均成本";}
+  .table-wrap td:nth-child(4)::before{content:"目前股價";}
+  .table-wrap td:nth-child(5)::before{content:"目前市值";}
+  .table-wrap td:nth-child(6)::before{content:"未實現損益";}
+  .table-wrap td:nth-child(7)::before{content:"報酬率";}
+  .table-wrap td:nth-child(8){justify-content:flex-end;gap:8px;padding-top:12px;}
+  .table-wrap td:nth-child(8)::before{content:"操作";margin-right:auto;}
+  .table-wrap .empty{display:block;width:100%;border:1px dashed var(--line);border-radius:12px;background:var(--card);text-align:center!important;}
+  .table-wrap .empty::before{display:none;}
+  .stock-name span{font-size:16px;}
+  .stock-name small{font-size:11px;}
+  .quote-time{white-space:normal;text-align:right;}
+}
