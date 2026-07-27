@@ -35,6 +35,19 @@ type QuoteLookup = {
   error?: string;
 };
 
+type SyncUser = {
+  id: string;
+  email?: string;
+  name?: string;
+};
+
+type HoldingsCloudResponse = {
+  holdings?: Holding[];
+  exists?: boolean;
+  updatedAt?: string;
+  error?: string;
+};
+
 const seed: Holding[] = [
   { id: "demo-tsm", symbol: "2330.TW", name: "台積電", shares: 1000, cost: 920000, price: 1045, currency: "TWD" },
   { id: "demo-aapl", symbol: "AAPL", name: "Apple", shares: 12, cost: 2280, price: 218.27, currency: "USD" },
@@ -71,6 +84,20 @@ function normalizeSymbol(value: string) {
   return symbol;
 }
 
+function identityToSyncUser(user: { id?: string; email?: string; name?: string; userMetadata?: Record<string, unknown> } | null): SyncUser | null {
+  if (!user?.id) return null;
+  const metadataName = typeof user.userMetadata?.full_name === "string" ? user.userMetadata.full_name : undefined;
+  return { id: user.id, email: user.email, name: user.name || metadataName };
+}
+
+function normalizeCloudHoldings(rows?: Holding[]) {
+  return Array.isArray(rows) ? rows.map((item) => ({ ...item, quoteTime: item.quoteTime ?? item.updatedAt })) : [];
+}
+
+function isSeedPortfolio(rows: Holding[]) {
+  return rows.length === seed.length && rows.every((row, index) => row.id === seed[index]?.id);
+}
+
 export default function Home() {
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [ready, setReady] = useState(false);
@@ -83,12 +110,17 @@ export default function Home() {
   const [loading, setLoading] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const [showGuide, setShowGuide] = useState(false);
+  const [syncUser, setSyncUser] = useState<SyncUser | null>(null);
+  const [syncStatus, setSyncStatus] = useState<"checking" | "signed-out" | "loading" | "syncing" | "synced" | "error">("checking");
+  const [syncMessage, setSyncMessage] = useState("檢查雲端同步狀態…");
   const holdingsRef = useRef<Holding[]>([]);
+  const hasLocalSavedRef = useRef(false);
 
   useEffect(() => {
     const hydrateTimer = window.setTimeout(() => {
       const saved = localStorage.getItem("stocknote-holdings");
       const data = (saved ? JSON.parse(saved) as Holding[] : seed).map((item) => ({ ...item, quoteTime: item.quoteTime ?? item.updatedAt }));
+      hasLocalSavedRef.current = Boolean(saved) && !isSeedPortfolio(data);
       setHoldings(data);
       setSelectedId(data[0]?.id ?? "");
       setReady(true);
@@ -122,6 +154,41 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    let active = true;
+    let unsubscribe: (() => void) | undefined;
+    const authTimer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const identity = await import("@netlify/identity");
+          const callbackResult = await identity.handleAuthCallback().catch(() => null);
+          const callbackUser = callbackResult?.user ?? null;
+          const currentUser = callbackUser ?? (await identity.getUser());
+          const user = identityToSyncUser(currentUser);
+          if (!active) return;
+          setSyncUser(user);
+          setSyncStatus(user ? "loading" : "signed-out");
+          setSyncMessage(user ? "正在讀取雲端庫存…" : "登入 Google 後可跨裝置同步庫存。");
+          unsubscribe = identity.onAuthChange((_event, nextUser) => {
+            const normalized = identityToSyncUser(nextUser);
+            setSyncUser(normalized);
+            setSyncStatus(normalized ? "loading" : "signed-out");
+            setSyncMessage(normalized ? "正在讀取雲端庫存…" : "登入 Google 後可跨裝置同步庫存。");
+          });
+        } catch {
+          if (!active) return;
+          setSyncStatus("error");
+          setSyncMessage("請先在 Netlify 啟用 Identity，才能使用雲端同步。");
+        }
+      })();
+    }, 0);
+    return () => {
+      active = false;
+      window.clearTimeout(authTimer);
+      unsubscribe?.();
+    };
+  }, []);
+
+  useEffect(() => {
     if (!ready) return;
     const guideTimer = window.setTimeout(() => {
       if (localStorage.getItem(GUIDE_STORAGE_KEY) !== "true") setShowGuide(true);
@@ -144,6 +211,95 @@ export default function Home() {
   function closeGuide() {
     localStorage.setItem(GUIDE_STORAGE_KEY, "true");
     setShowGuide(false);
+  }
+
+  const saveHoldingsToCloud = useCallback(async (rows: Holding[], options: { silent?: boolean; message?: string } = {}) => {
+    if (!syncUser) return false;
+    if (!options.silent) {
+      setSyncStatus("syncing");
+      setSyncMessage("正在同步庫存到雲端…");
+    }
+    try {
+      const response = await fetch("/api/holdings", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ holdings: rows }),
+      });
+      const data = await response.json() as HoldingsCloudResponse;
+      if (!response.ok) throw new Error(data.error || "雲端同步失敗");
+      setSyncStatus("synced");
+      setSyncMessage(options.message || "庫存已同步到雲端。");
+      return true;
+    } catch (error) {
+      setSyncStatus("error");
+      setSyncMessage(error instanceof Error ? error.message : "雲端同步失敗，請稍後再試。");
+      return false;
+    }
+  }, [syncUser]);
+
+  const loadHoldingsFromCloud = useCallback(async () => {
+    if (!ready || !syncUser) return;
+    setSyncStatus("loading");
+    setSyncMessage("正在讀取雲端庫存…");
+    try {
+      const response = await fetch("/api/holdings", { cache: "no-store", credentials: "include" });
+      const data = await response.json() as HoldingsCloudResponse;
+      if (!response.ok) throw new Error(data.error || "讀取雲端庫存失敗");
+      const cloudRows = normalizeCloudHoldings(data.holdings);
+
+      if (data.exists) {
+        setHoldings(cloudRows);
+        setSelectedId(cloudRows[0]?.id ?? "");
+        setSyncStatus("synced");
+        setSyncMessage(data.updatedAt ? `已讀取雲端庫存（${quoteTime(data.updatedAt)}）` : "已讀取雲端庫存。");
+        return;
+      }
+
+      if (hasLocalSavedRef.current && holdingsRef.current.length > 0) {
+        await saveHoldingsToCloud(holdingsRef.current, { silent: true, message: "已將這台裝置的庫存匯入雲端。" });
+        return;
+      }
+
+      setHoldings([]);
+      setSelectedId("");
+      setSyncStatus("synced");
+      setSyncMessage("雲端目前沒有庫存，新增後會自動同步。");
+    } catch (error) {
+      setSyncStatus("error");
+      setSyncMessage(error instanceof Error ? error.message : "讀取雲端庫存失敗，請稍後再試。");
+    }
+  }, [ready, saveHoldingsToCloud, syncUser]);
+
+  useEffect(() => {
+    if (!ready || !syncUser) return;
+    const cloudTimer = window.setTimeout(() => {
+      void loadHoldingsFromCloud();
+    }, 0);
+    return () => window.clearTimeout(cloudTimer);
+  }, [loadHoldingsFromCloud, ready, syncUser]);
+
+  async function signInWithGoogle() {
+    setSyncStatus("checking");
+    setSyncMessage("前往 Google 登入…");
+    try {
+      const { oauthLogin } = await import("@netlify/identity");
+      oauthLogin("google");
+    } catch {
+      setSyncStatus("error");
+      setSyncMessage("請先在 Netlify 啟用 Identity 和 Google 登入。");
+    }
+  }
+
+  async function signOutSync() {
+    try {
+      const { logout } = await import("@netlify/identity");
+      await logout();
+    } finally {
+      setSyncUser(null);
+      setSyncStatus("signed-out");
+      setSyncMessage("已登出，庫存暫存在此裝置。");
+    }
   }
 
   const selected = holdings.find((item) => item.id === selectedId) ?? holdings[0];
@@ -228,8 +384,11 @@ export default function Home() {
     const existing = holdings.find((item) => item.id === editingId);
     const quoteAt = resolved.quoteTime || existing?.quoteTime || existing?.updatedAt;
     const item: Holding = { id: editingId || crypto.randomUUID(), symbol: normalizeSymbol(resolved.symbol), name: resolved.name || resolved.symbol, shares, cost: normalizedCost, price: resolved.price, currency: resolved.currency, updatedAt: quoteAt, quoteTime: quoteAt, fetchedAt: resolved.fetchedAt || existing?.fetchedAt, marketState: resolved.marketState || existing?.marketState || "unknown", inputCost: stockCost, inputCostCurrency: form.costCurrency, exchangeRate: needsConversion ? rate : undefined, inputFee: fee || undefined, inputOtherFee: otherFee || undefined };
-    setHoldings((items) => editingId ? items.map((row) => row.id === editingId ? item : row) : [...items, item]);
+    const nextHoldings = editingId ? holdings.map((row) => row.id === editingId ? item : row) : [...holdings, item];
+    hasLocalSavedRef.current = true;
+    setHoldings(nextHoldings);
     setSelectedId(item.id);
+    void saveHoldingsToCloud(nextHoldings, { silent: true });
     const wasEditing = Boolean(editingId);
     resetForm();
     setNotice(`${item.name} 已${wasEditing ? "更新" : "加入"}庫存${needsConversion ? `（以 1 USD = ${rate.toFixed(3)} TWD 換算）` : ""}`);
@@ -291,7 +450,17 @@ export default function Home() {
     const next = window.prompt(`更新 ${item.symbol} 股價`, String(item.price));
     if (next === null || Number(next) <= 0) return;
     const now = new Date().toISOString();
-    setHoldings((items) => items.map((row) => row.id === item.id ? { ...row, price: Number(next), updatedAt: now, quoteTime: now, fetchedAt: now, marketState: "unknown" } : row));
+    const nextHoldings: Holding[] = holdings.map((row) => row.id === item.id ? { ...row, price: Number(next), updatedAt: now, quoteTime: now, fetchedAt: now, marketState: "unknown" } : row);
+    setHoldings(nextHoldings);
+    void saveHoldingsToCloud(nextHoldings, { silent: true });
+  }
+
+  function deleteHolding(item: Holding) {
+    const nextHoldings = holdings.filter((row) => row.id !== item.id);
+    hasLocalSavedRef.current = true;
+    setHoldings(nextHoldings);
+    if (selectedId === item.id) setSelectedId(nextHoldings[0]?.id ?? "");
+    void saveHoldingsToCloud(nextHoldings, { silent: true });
   }
 
   const totalTwd = holdings.filter((h) => h.currency === "TWD").reduce((sum, h) => sum + h.price * h.shares, 0);
@@ -325,6 +494,13 @@ export default function Home() {
       <header className="topbar">
         <a className="brand" href="#"><span className="brand-mark">S</span><span>Stocknote</span></a>
         <nav><a href="#portfolio">投資組合</a><a href="#simulator">加碼試算</a></nav>
+        <div className={`sync-control ${syncStatus}`.trim()}>
+          {syncUser ? <>
+            <span title={syncUser.email || syncUser.name || "已登入"}>{syncUser.email || syncUser.name || "已登入"}</span>
+            <button type="button" onClick={() => void loadHoldingsFromCloud()} disabled={syncStatus === "loading" || syncStatus === "syncing"}>{syncStatus === "loading" || syncStatus === "syncing" ? "同步中…" : "同步"}</button>
+            <button type="button" onClick={() => void signOutSync()}>登出</button>
+          </> : <button type="button" onClick={() => void signInWithGoogle()} disabled={syncStatus === "checking"}>{syncStatus === "checking" ? "檢查中…" : "Google 同步登入"}</button>}
+        </div>
         <button className="guide-trigger" type="button" onClick={() => setShowGuide(true)}>導引</button>
         <div className={`status ${statusClass}`.trim()}><span className="live-dot" /> {quoteSummary}<small>{latestFetchedAt ? `檢查 ${quoteTime(latestFetchedAt)}` : "每 1 分鐘"}</small></div>
       </header>
@@ -334,7 +510,7 @@ export default function Home() {
           <button className="guide-close" type="button" onClick={closeGuide} aria-label="關閉導引">×</button>
           <p className="eyebrow">WELCOME GUIDE</p>
           <h2 id="guide-title">3 步驟開始搶救錢包</h2>
-          <p className="guide-copy">先建立庫存，再看即時損益，最後用加碼與目標價試算下一步。資料會存在你的裝置裡，重新開啟也能繼續使用。</p>
+          <p className="guide-copy">先建立庫存，再看即時損益，最後用加碼與目標價試算下一步。登入 Google 後可跨裝置同步庫存；沒登入時仍會存在這台裝置。</p>
           <div className="guide-steps">
             <article><span>01</span><h3>新增股票庫存</h3><p>輸入股票名稱或代號，台股/美股會自動查找名稱與報價，再填入股數、成本與費用。</p></article>
             <article><span>02</span><h3>查看即時損益</h3><p>庫存總覽會分開顯示台股與美股，包含目前市值、未實現損益與報酬率。</p></article>
@@ -350,6 +526,11 @@ export default function Home() {
       </section>
 
       {notice && <button className="notice" onClick={() => setNotice("")} aria-label="關閉通知">{notice}<span>×</span></button>}
+
+      <section className={`sync-banner ${syncStatus}`.trim()} aria-live="polite">
+        <span>雲端同步</span>
+        <p>{syncMessage}</p>
+      </section>
 
       <section className="summary-grid" aria-label="資產摘要">
         <article className="metric market-card tw-card">
@@ -388,7 +569,7 @@ export default function Home() {
                   <td><button className="price-button" onClick={(e) => { e.stopPropagation(); updatePrice(item); }}>{money(item.price, item.currency, 2)}</button><small className="quote-time">最新報價時間 {quoteTime(itemQuoteTime)}</small><small className="quote-time">本次檢查時間 {quoteTime(item.fetchedAt)}</small>{itemQuoteBadge && <span className={`quote-badge ${item.marketState === "closed" ? "closed" : "delayed"}`}>{itemQuoteBadge}</span>}</td>
                   <td>{money(displayValue, displayCurrency)}</td><td className={displayProfit >= 0 ? "gain" : "loss"}>{money(displayProfit, displayCurrency)}</td>
                   <td><span className={`pill ${roi >= 0 ? "up" : "down"}`}>{pct(roi)}</span></td>
-                  <td><button className="refresh" disabled={loading === item.id || loading === "all"} onClick={(e) => { e.stopPropagation(); refreshQuote(item); }} aria-label={`更新 ${item.symbol} 報價`}>{loading === item.id ? "…" : "↻"}</button><button className="edit" onClick={(e) => { e.stopPropagation(); beginEdit(item); }} aria-label={`編輯 ${item.symbol}`}>✎</button><button className="delete" onClick={(e) => { e.stopPropagation(); setHoldings((rows) => rows.filter((row) => row.id !== item.id)); }}>×</button></td>
+                  <td><button className="refresh" disabled={loading === item.id || loading === "all"} onClick={(e) => { e.stopPropagation(); refreshQuote(item); }} aria-label={`更新 ${item.symbol} 報價`}>{loading === item.id ? "…" : "↻"}</button><button className="edit" onClick={(e) => { e.stopPropagation(); beginEdit(item); }} aria-label={`編輯 ${item.symbol}`}>✎</button><button className="delete" onClick={(e) => { e.stopPropagation(); deleteHolding(item); }} aria-label={`刪除 ${item.symbol}`}>×</button></td>
                 </tr>;
               })}
               {!holdings.length && <tr><td colSpan={8} className="empty">還沒有庫存，從下方新增第一筆。</td></tr>}
@@ -421,7 +602,7 @@ export default function Home() {
         </section>
       </section>
 
-      <footer><span>STOCKNOTE / 個人投資計算工具</span><p>報價可能延遲，資料僅供參考，不構成投資建議。資料儲存在此裝置。</p></footer>
+      <footer><span>STOCKNOTE / 個人投資計算工具</span><p>報價可能延遲，資料僅供參考，不構成投資建議。資料預設儲存在此裝置，登入後同步到雲端。</p></footer>
     </main>
   );
 }

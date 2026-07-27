@@ -12,8 +12,14 @@ button,a { -webkit-tap-highlight-color:transparent; }
 .brand-mark { display:grid; place-items:center; width:34px; height:34px; color:white; background:var(--teal); border-radius:50% 50% 50% 10%; font:700 18px Georgia; }
 nav { display:flex; gap:34px; margin-left:70px; }
 nav a { color:#4d5754; text-decoration:none; font-size:14px; }
-.status { margin-left:auto; border:1px solid var(--line); background:var(--card); padding:9px 13px; border-radius:999px; font-size:12px; display:flex; align-items:center; gap:7px; white-space:nowrap; }
+.status { margin-left:10px; border:1px solid var(--line); background:var(--card); padding:9px 13px; border-radius:999px; font-size:12px; display:flex; align-items:center; gap:7px; white-space:nowrap; }
 .status small{color:var(--muted);font-size:10px;}
+.sync-control{margin-left:auto;display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px;font-size:11px;white-space:nowrap;}
+.sync-control span{max-width:170px;overflow:hidden;color:#40504c;font-weight:800;text-overflow:ellipsis;}
+.sync-control button{border:0;border-radius:999px;background:var(--teal);color:white;padding:7px 10px;font-size:10px;font-weight:900;cursor:pointer;}
+.sync-control button+button{background:#e8eeee;color:#50605c;}
+.sync-control button:disabled{opacity:.55;cursor:wait;}
+.sync-control.error{border-color:#e2b4ad;background:#fff8f6;}
 .live-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:#20a56f; margin-right:5px; box-shadow:0 0 0 4px #d9eee5; }
 .status.is-delayed .live-dot{background:#d18a22;box-shadow:0 0 0 4px #f3e5c9}.status.is-closed .live-dot{background:#8a928f;box-shadow:0 0 0 4px #e4e7e5}
 .guide-trigger{margin-left:22px;border:1px solid #bdc5c1;background:var(--card);border-radius:999px;padding:9px 13px;color:#40504c;font-size:12px;font-weight:800;cursor:pointer;}
@@ -26,6 +32,11 @@ h1 em { color:var(--teal); font-weight:500; }
 .market-pulse { display:grid; grid-template-columns:auto auto; gap:5px 22px; border-left:1px solid var(--line); padding:8px 0 8px 24px; font-size:11px; }
 .market-pulse span { color:var(--muted); letter-spacing:1.5px; }.market-pulse strong{font:600 17px Georgia;}.market-pulse i{grid-column:2;color:#16865c;font-style:normal;}
 .notice { position:fixed; z-index:50; right:24px; top:90px; border:0; color:white; background:var(--ink); box-shadow:0 10px 30px #17201f30; border-radius:10px; padding:13px 16px; cursor:pointer; }.notice span{margin-left:20px;color:#aab1ae;}
+.sync-banner{max-width:1420px;margin:-34px auto 34px;padding:0 5vw;display:flex;align-items:center;gap:10px;color:#53615c;font-size:12px;line-height:1.6;}
+.sync-banner span{flex:none;border-radius:999px;background:#dfeee7;color:var(--teal);font-size:10px;font-weight:900;padding:5px 9px;letter-spacing:.5px;}
+.sync-banner p{margin:0;}
+.sync-banner.error span{background:#f3e1df;color:var(--red);}
+.sync-banner.loading span,.sync-banner.checking span,.sync-banner.syncing span{background:#f8ebcf;color:#9a5c08;}
 .guide-backdrop{position:fixed;inset:0;z-index:80;display:grid;place-items:center;padding:24px;background:rgba(18,27,25,.46);backdrop-filter:blur(10px);}
 .guide-modal{position:relative;width:min(920px,100%);max-height:calc(100vh - 48px);overflow:auto;border:1px solid #dce2df;border-radius:18px;background:linear-gradient(135deg,#fffefa 0%,#f6f4ed 62%,#e8f1ec 100%);box-shadow:0 30px 90px rgba(12,28,25,.28);padding:34px;}
 .guide-close{position:absolute;right:18px;top:16px;border:0;background:#edf1ec;color:#5b6662;width:32px;height:32px;border-radius:50%;font-size:20px;line-height:1;cursor:pointer;}
@@ -125,12 +136,15 @@ footer{max-width:1280px;margin:0 auto;padding:26px 28px 45px;border-top:1px soli
   .brand{gap:9px;font-size:19px;}
   .brand-mark{width:30px;height:30px;font-size:16px;}
   .guide-trigger{order:2;margin-left:auto;padding:7px 10px;font-size:11px;}
-  .topbar .status{order:3;margin-left:0;padding:7px 10px;font-size:11px;gap:5px;max-width:100%;}
+  .sync-control{order:3;width:100%;margin-left:0;justify-content:space-between;border-radius:12px;padding:8px 9px;}
+  .sync-control span{max-width:46vw;}
+  .topbar .status{order:4;width:100%;justify-content:center;margin-left:0;padding:7px 10px;font-size:11px;gap:5px;max-width:100%;}
   .topbar .status small{font-size:9px;}
   .status .live-dot{margin-right:4px;}
-  .topbar nav{order:4;display:flex;width:100%;margin-left:0;gap:8px;}
+  .topbar nav{order:5;display:flex;width:100%;margin-left:0;gap:8px;}
   .topbar nav a{flex:1;border:1px solid #d4dbd7;border-radius:999px;background:rgba(251,250,246,.82);padding:9px 8px;text-align:center;font-size:12px;font-weight:800;}
   .hero{padding-top:34px;}
+  .sync-banner{margin:-22px 20px 24px;padding:0;align-items:flex-start;font-size:11px;}
 }
 @media(max-width:380px){
   .topbar .status{width:100%;justify-content:center;}
