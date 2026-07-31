@@ -11,11 +11,20 @@ type SearchQuote = {
   exchange?: string;
 };
 
+type TaiwanMarket = "TW" | "TWO";
+
 type TaiwanCompany = {
   code: string;
   name: string;
   abbreviation: string;
-  market: "TW" | "TWO";
+  market: TaiwanMarket;
+};
+
+type TaiwanQuoteTarget = {
+  code: string;
+  name?: string;
+  abbreviation?: string;
+  market?: TaiwanMarket;
 };
 
 type TradingPeriod = {
@@ -58,9 +67,23 @@ type TaiwanMisResponse = {
 
 const taiwanCompanies = taiwanCompaniesData as TaiwanCompany[];
 
+function normalizeTaiwanCode(value: string) {
+  return value.trim().toUpperCase().replace(/\.(TW|TWO)$/i, "");
+}
+
+function isTaiwanCode(value: string) {
+  return /^\d{4,6}[A-Z]?$/.test(normalizeTaiwanCode(value));
+}
+
+function taiwanMarketSuffix(value: string): TaiwanMarket | undefined {
+  if (/\.TWO$/i.test(value)) return "TWO";
+  if (/\.TW$/i.test(value)) return "TW";
+  return undefined;
+}
+
 function normalizeQuery(value: string) {
   const query = value.trim();
-  if (/^\d{4,6}$/.test(query)) return `${query}.TW`;
+  if (isTaiwanCode(query) && !taiwanMarketSuffix(query)) return `${normalizeTaiwanCode(query)}.TW`;
   return query;
 }
 
@@ -124,9 +147,10 @@ function taiwanMarketState(now = new Date()) {
   return minutes >= 9 * 60 && minutes <= 13 * 60 + 30 ? "open" : "closed";
 }
 
-async function getTaiwanQuote(company: TaiwanCompany) {
-  const exchange = company.market === "TWO" ? "otc" : "tse";
-  const endpoint = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${exchange}_${company.code}.tw&json=1&delay=0`;
+async function getTaiwanQuoteFromMarket(target: TaiwanQuoteTarget, market: TaiwanMarket) {
+  const code = normalizeTaiwanCode(target.code);
+  const exchange = market === "TWO" ? "otc" : "tse";
+  const endpoint = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${exchange}_${code}.tw&json=1&delay=0`;
   const response = await fetch(endpoint, {
     headers: {
       "Accept": "application/json, text/plain, */*",
@@ -137,19 +161,29 @@ async function getTaiwanQuote(company: TaiwanCompany) {
   });
   if (!response.ok) return null;
   const json = await response.json() as TaiwanMisResponse;
-  const item = json.msgArray?.find((quote) => quote.c === company.code) ?? json.msgArray?.[0];
+  const item = json.msgArray?.find((quote) => quote.c?.toUpperCase() === code) ?? json.msgArray?.[0];
   const price = item ? taiwanCurrentPrice(item) : undefined;
   if (json.rtcode !== "0000" || !item || typeof price !== "number") return null;
   return {
-    symbol: `${company.code}.${company.market}`,
-    name: item.n || company.abbreviation || item.nf || company.name,
+    symbol: `${code}.${market}`,
+    name: item.n || target.abbreviation || item.nf || target.name || code,
     price,
     quoteTime: parseTaiwanQuoteTime(item),
     currency: "TWD" as const,
     marketState: taiwanMarketState(),
-    exchange: company.market === "TWO" ? "TPEx" : "TWSE",
-    source: company.market === "TWO" ? "TWSE MIS OTC" : "TWSE MIS",
+    exchange: market === "TWO" ? "TPEx" : "TWSE",
+    source: market === "TWO" ? "TWSE MIS OTC" : "TWSE MIS",
   };
+}
+
+async function getTaiwanQuote(target: TaiwanQuoteTarget, markets?: TaiwanMarket[]) {
+  const fallbackMarkets: TaiwanMarket[] = target.market ? [target.market] : ["TW", "TWO"];
+  const attempts = [...new Set(markets?.length ? markets : fallbackMarkets)];
+  for (const market of attempts) {
+    const quote = await getTaiwanQuoteFromMarket(target, market);
+    if (quote) return quote;
+  }
+  return null;
 }
 
 function marketState(meta: ChartMeta) {
@@ -167,7 +201,8 @@ export async function GET(request: NextRequest) {
     const normalized = normalizeQuery(raw);
     let result: SearchQuote | undefined;
 
-    const baseCode = normalized.replace(/\.(TW|TWO)$/i, "");
+    const rawMarket = taiwanMarketSuffix(raw);
+    const baseCode = normalizeTaiwanCode(normalized);
     const localCompany = taiwanCompanies.find((company) => company.code === baseCode)
       ?? taiwanCompanies.find((company) => company.abbreviation === raw || company.name === raw)
       ?? taiwanCompanies.find((company) => company.abbreviation.includes(raw) || company.name.includes(raw));
@@ -193,13 +228,16 @@ export async function GET(request: NextRequest) {
     }
 
     if (!result?.symbol) return NextResponse.json({ error: "找不到符合的股票" }, { status: 404 });
-    const isTaiwanResult = result.symbol.endsWith(".TW") || result.symbol.endsWith(".TWO");
+    const isTaiwanResult = /\.(TW|TWO)$/i.test(result.symbol);
     const fetchedAt = new Date().toISOString();
     if (isTaiwanResult) {
-      const code = result.symbol.replace(/\.(TW|TWO)$/i, "");
+      const code = normalizeTaiwanCode(result.symbol);
       const company = localCompany ?? taiwanCompanies.find((item) => item.code === code);
-      if (!company) return NextResponse.json({ error: "找不到台股上市櫃對應資料" }, { status: 404 });
-      const taiwanQuote = await getTaiwanQuote(company);
+      const target = company ?? (isTaiwanCode(code) ? { code, name: result.longname, abbreviation: result.shortname } : null);
+      if (!target) return NextResponse.json({ error: "找不到台股上市櫃對應資料" }, { status: 404 });
+      const resultMarket = taiwanMarketSuffix(result.symbol);
+      const marketAttempts: TaiwanMarket[] = company?.market ? [company.market] : rawMarket ? [rawMarket] : resultMarket === "TWO" ? ["TWO", "TW"] : ["TW", "TWO"];
+      const taiwanQuote = await getTaiwanQuote(target, marketAttempts);
       if (!taiwanQuote) return NextResponse.json({ error: "找到股票，但目前沒有可用的台股即時報價" }, { status: 404 });
       return NextResponse.json({ ...taiwanQuote, fetchedAt });
     }
@@ -208,7 +246,7 @@ export async function GET(request: NextRequest) {
     if (typeof quote?.regularMarketPrice !== "number") return NextResponse.json({ error: "找到股票，但目前沒有可用報價" }, { status: 404 });
 
     const symbol = quote.symbol || result.symbol;
-    const isTaiwan = symbol.endsWith(".TW") || symbol.endsWith(".TWO");
+    const isTaiwan = /\.(TW|TWO)$/i.test(symbol);
     const exchangeQuote = !isTaiwan && quote.currency === "USD" ? await getYahooQuote("TWD=X") : null;
     return NextResponse.json({
       symbol,

@@ -38,6 +38,18 @@ type TaiwanMisResponse = {
   msgArray?: TaiwanMisItem[];
 };
 
+type TaiwanMarket = "TW" | "TWO";
+
+function normalizeTaiwanCode(value: string) {
+  return value.trim().toUpperCase().replace(/\.(TW|TWO)$/i, "");
+}
+
+function taiwanMarketSuffix(value: string): TaiwanMarket | undefined {
+  if (/\.TWO$/i.test(value)) return "TWO";
+  if (/\.TW$/i.test(value)) return "TW";
+  return undefined;
+}
+
 function parseMarketNumber(value?: string) {
   const normalized = value?.trim().replace(/,/g, "");
   if (!normalized || normalized === "-" || normalized === "_") return undefined;
@@ -85,10 +97,9 @@ function taiwanMarketState(now = new Date()) {
   return minutes >= 9 * 60 && minutes <= 13 * 60 + 30 ? "open" : "closed";
 }
 
-async function getTaiwanQuote(symbol: string) {
-  const market = symbol.endsWith(".TWO") ? "TWO" : "TW";
+async function getTaiwanQuoteFromMarket(symbol: string, market: TaiwanMarket) {
   const exchange = market === "TWO" ? "otc" : "tse";
-  const code = symbol.replace(/\.(TW|TWO)$/i, "");
+  const code = normalizeTaiwanCode(symbol);
   const endpoint = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${exchange}_${code}.tw&json=1&delay=0`;
   const response = await fetch(endpoint, {
     headers: {
@@ -100,7 +111,7 @@ async function getTaiwanQuote(symbol: string) {
   });
   if (!response.ok) return null;
   const json = await response.json() as TaiwanMisResponse;
-  const item = json.msgArray?.find((quote) => quote.c === code) ?? json.msgArray?.[0];
+  const item = json.msgArray?.find((quote) => quote.c?.toUpperCase() === code) ?? json.msgArray?.[0];
   const price = item ? taiwanCurrentPrice(item) : undefined;
   if (json.rtcode !== "0000" || !item || typeof price !== "number") return null;
   return {
@@ -115,6 +126,16 @@ async function getTaiwanQuote(symbol: string) {
   };
 }
 
+async function getTaiwanQuote(symbol: string) {
+  const explicitMarket = taiwanMarketSuffix(symbol);
+  const attempts: TaiwanMarket[] = explicitMarket ? [explicitMarket] : ["TW", "TWO"];
+  for (const market of attempts) {
+    const quote = await getTaiwanQuoteFromMarket(symbol, market);
+    if (quote) return quote;
+  }
+  return null;
+}
+
 function marketState(meta: ChartMeta) {
   const regular = meta.currentTradingPeriod?.regular;
   if (!regular?.start || !regular?.end) return "unknown";
@@ -126,7 +147,7 @@ export async function GET(request: NextRequest) {
   const symbol = request.nextUrl.searchParams.get("symbol")?.trim().toUpperCase();
   if (!symbol || !/^[A-Z0-9.^=-]+$/.test(symbol)) return NextResponse.json({ error: "股票代號格式不正確" }, { status: 400 });
   try {
-    if (symbol.endsWith(".TW") || symbol.endsWith(".TWO")) {
+    if (/\.(TW|TWO)$/i.test(symbol)) {
       const taiwanQuote = await getTaiwanQuote(symbol);
       if (!taiwanQuote) return NextResponse.json({ error: "找不到此台股的即時報價" }, { status: 404 });
       return NextResponse.json(taiwanQuote);

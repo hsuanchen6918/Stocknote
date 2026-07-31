@@ -80,7 +80,7 @@ function quoteBadge(quoteAt?: string, fetchedAt?: string, marketState?: MarketSt
 
 function normalizeSymbol(value: string) {
   const symbol = value.trim().toUpperCase();
-  if (/^\d{4,6}$/.test(symbol)) return `${symbol}.TW`;
+  if (/^\d{4,6}[A-Z]?$/.test(symbol)) return `${symbol}.TW`;
   return symbol;
 }
 
