@@ -107,17 +107,21 @@ function parseMarketNumber(value?: string) {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function positivePrice(value?: number) {
+  return typeof value === "number" && value > 0 ? value : undefined;
+}
+
 function firstQuoteLevel(value?: string) {
-  return value?.split("_").map(parseMarketNumber).find((price) => typeof price === "number");
+  return value?.split("_").map(parseMarketNumber).find((price) => typeof price === "number" && price > 0);
 }
 
 function taiwanCurrentPrice(item: TaiwanMisItem) {
-  const lastTrade = parseMarketNumber(item.z) ?? parseMarketNumber(item.pz);
+  const lastTrade = positivePrice(parseMarketNumber(item.z)) ?? positivePrice(parseMarketNumber(item.pz));
   if (typeof lastTrade === "number") return lastTrade;
   const bestAsk = firstQuoteLevel(item.a);
   const bestBid = firstQuoteLevel(item.b);
   if (typeof bestAsk === "number" && typeof bestBid === "number") return (bestAsk + bestBid) / 2;
-  return bestBid ?? bestAsk ?? parseMarketNumber(item.y);
+  return bestBid ?? bestAsk ?? positivePrice(parseMarketNumber(item.y));
 }
 
 function parseTaiwanQuoteTime(item: TaiwanMisItem) {

@@ -322,7 +322,7 @@ export default function Home() {
     try {
       const response = await fetch(`/api/lookup?q=${encodeURIComponent(query)}`, { cache: "no-store" });
       const data = await response.json() as QuoteLookup;
-      if (!response.ok || !data.symbol || !data.price) throw new Error(data.error || "找不到符合的股票");
+      if (!response.ok || !data.symbol || typeof data.price !== "number" || data.price <= 0) throw new Error(data.error || "找不到符合的股票");
       const resolved = { symbol: data.symbol, name: data.name || data.symbol, price: data.price, currency: data.currency === "USD" ? "USD" as const : "TWD" as const, quoteTime: data.quoteTime, fetchedAt: data.fetchedAt, marketState: data.marketState ?? "unknown" as MarketState, exchangeRate: data.exchangeRate || 0 };
       setForm((current) => ({ ...current, ...resolved, price: String(resolved.price), quoteTime: resolved.quoteTime ?? "", fetchedAt: resolved.fetchedAt ?? "", costCurrency: current.symbol ? current.costCurrency : resolved.currency }));
       setNotice(`已找到 ${resolved.name}（${resolved.symbol}），即時股價 ${money(resolved.price, resolved.currency, 2)}`);
@@ -402,7 +402,7 @@ export default function Home() {
     try {
       const response = await fetch(`/api/lookup?q=${encodeURIComponent(item.symbol)}`, { cache: "no-store" });
       const data = await response.json() as QuoteLookup;
-      if (!response.ok || !data.price) throw new Error(data.error || "目前無法取得報價");
+      if (!response.ok || typeof data.price !== "number" || data.price <= 0) throw new Error(data.error || "目前無法取得報價");
       const now = new Date().toISOString();
       const quoteAt = data.quoteTime || now;
       setHoldings((items) => items.map((row) => row.id === item.id ? { ...row, price: data.price!, name: data.name || row.name, currency: data.currency === "USD" ? "USD" : row.currency, exchangeRate: data.exchangeRate || row.exchangeRate, updatedAt: quoteAt, quoteTime: quoteAt, fetchedAt: data.fetchedAt || now, marketState: data.marketState ?? "unknown" } : row));
