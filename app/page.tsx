@@ -493,7 +493,7 @@ export default function Home() {
     <main>
       <header className="topbar">
         <a className="brand" href="#"><span className="brand-mark">S</span><span>Stocknote</span></a>
-        <nav><a href="#portfolio">投資組合</a><a href="#simulator">加碼試算</a></nav>
+        <nav><a href="#portfolio">投資組合</a><a href="#simulator">加碼試算</a><a href="/watchlist">即時看盤</a></nav>
         <div className={`sync-control ${syncStatus}`.trim()}>
           {syncUser ? <>
             <span title={syncUser.email || syncUser.name || "已登入"}>{syncUser.email || syncUser.name || "已登入"}</span>

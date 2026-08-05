@@ -40,6 +40,8 @@ type ChartMeta = {
   longName?: string;
   currency?: string;
   exchangeName?: string;
+  chartPreviousClose?: number;
+  previousClose?: number;
   currentTradingPeriod?: {
     regular?: TradingPeriod;
   };
@@ -172,6 +174,7 @@ async function getTaiwanQuoteFromMarket(target: TaiwanQuoteTarget, market: Taiwa
     symbol: `${code}.${market}`,
     name: item.n || target.abbreviation || item.nf || target.name || code,
     price,
+    previousClose: positivePrice(parseMarketNumber(item.y)),
     quoteTime: parseTaiwanQuoteTime(item),
     currency: "TWD" as const,
     marketState: taiwanMarketState(),
@@ -256,6 +259,7 @@ export async function GET(request: NextRequest) {
       symbol,
       name: isTaiwan ? (result.shortname || result.longname || quote.shortName || symbol) : (result.longname || result.shortname || quote.longName || quote.shortName || symbol),
       price: quote.regularMarketPrice,
+      previousClose: quote.chartPreviousClose ?? quote.previousClose,
       quoteTime: quote.regularMarketTime ? new Date(quote.regularMarketTime * 1000).toISOString() : new Date().toISOString(),
       fetchedAt,
       marketState: marketState(quote),

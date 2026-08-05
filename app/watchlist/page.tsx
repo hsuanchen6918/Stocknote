@@ -1,0 +1,165 @@
+"use client";
+
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+
+type MarketState = "open" | "closed" | "unknown";
+
+type WatchItem = {
+  id: string;
+  symbol: string;
+  name: string;
+  price: number;
+  previousClose?: number;
+  currency: string;
+  exchange?: string;
+  quoteTime?: string;
+  fetchedAt?: string;
+  marketState?: MarketState;
+};
+
+type QuoteResponse = Omit<WatchItem, "id"> & { error?: string };
+
+const STORAGE_KEY = "stocknote-watchlist";
+const REFRESH_INTERVAL = 60_000;
+
+function formatPrice(value: number, currency: string) {
+  return new Intl.NumberFormat("zh-TW", {
+    style: "currency",
+    currency: currency === "USD" ? "USD" : "TWD",
+    minimumFractionDigits: currency === "USD" ? 2 : 0,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function formatTime(value?: string) {
+  if (!value) return "等待報價";
+  return new Intl.DateTimeFormat("zh-TW", {
+    month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: false, timeZone: "Asia/Taipei",
+  }).format(new Date(value));
+}
+
+function changeOf(item: WatchItem) {
+  const base = item.previousClose;
+  if (!base) return { amount: 0, percent: 0, available: false };
+  const amount = item.price - base;
+  return { amount, percent: amount / base * 100, available: true };
+}
+
+export default function WatchlistPage() {
+  const [items, setItems] = useState<WatchItem[]>([]);
+  const [query, setQuery] = useState("");
+  const [ready, setReady] = useState(false);
+  const [loading, setLoading] = useState<string | null>(null);
+  const [message, setMessage] = useState("");
+  const itemsRef = useRef<WatchItem[]>([]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try { setItems(JSON.parse(saved) as WatchItem[]); } catch { localStorage.removeItem(STORAGE_KEY); }
+    }
+    setReady(true);
+  }, []);
+
+  useEffect(() => { itemsRef.current = items; }, [items]);
+  useEffect(() => { if (ready) localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); }, [items, ready]);
+
+  const fetchQuote = useCallback(async (value: string) => {
+    const response = await fetch(`/api/lookup?q=${encodeURIComponent(value)}`, { cache: "no-store" });
+    const data = await response.json() as QuoteResponse;
+    if (!response.ok || !data.symbol || typeof data.price !== "number") throw new Error(data.error || "目前無法取得報價");
+    return data;
+  }, []);
+
+  const refreshAll = useCallback(async (visible = true) => {
+    const current = itemsRef.current;
+    if (!current.length) return;
+    if (visible) { setLoading("all"); setMessage(""); }
+    const results = await Promise.allSettled(current.map((item) => fetchQuote(item.symbol)));
+    setItems((rows) => rows.map((item) => {
+      const index = current.findIndex((row) => row.id === item.id);
+      const result = results[index];
+      return result?.status === "fulfilled" ? { ...item, ...result.value, id: item.id } : item;
+    }));
+    if (visible) {
+      const updated = results.filter((result) => result.status === "fulfilled").length;
+      setMessage(`已更新 ${updated} / ${current.length} 檔股票`);
+      setLoading(null);
+    }
+  }, [fetchQuote]);
+
+  useEffect(() => {
+    if (!ready || !items.length) return;
+    const initial = window.setTimeout(() => void refreshAll(false), 0);
+    const timer = window.setInterval(() => void refreshAll(false), REFRESH_INTERVAL);
+    return () => { window.clearTimeout(initial); window.clearInterval(timer); };
+  }, [ready, items.length, refreshAll]);
+
+  async function addItem(event: FormEvent) {
+    event.preventDefault();
+    if (!query.trim()) return;
+    setLoading("add");
+    setMessage("");
+    try {
+      const quote = await fetchQuote(query.trim());
+      if (itemsRef.current.some((item) => item.symbol === quote.symbol)) {
+        setMessage(`${quote.symbol} 已經在看盤清單中`);
+        return;
+      }
+      setItems((current) => [...current, { ...quote, id: crypto.randomUUID() }]);
+      setQuery("");
+      setMessage(`已加入 ${quote.name || quote.symbol}`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "新增股票失敗");
+    } finally { setLoading(null); }
+  }
+
+  async function refreshOne(item: WatchItem) {
+    setLoading(item.id);
+    try {
+      const quote = await fetchQuote(item.symbol);
+      setItems((current) => current.map((row) => row.id === item.id ? { ...row, ...quote, id: row.id } : row));
+      setMessage(`${item.symbol} 已更新`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "更新失敗");
+    } finally { setLoading(null); }
+  }
+
+  const openCount = items.filter((item) => item.marketState === "open").length;
+  const latest = items.reduce((result, item) => !result || (item.fetchedAt || "") > result ? item.fetchedAt || result : result, "");
+
+  return <main className="watch-page">
+    <header className="topbar watch-topbar">
+      <a className="brand" href="/"><span className="brand-mark">S</span><span>Stocknote</span></a>
+      <nav><a href="/">投資組合</a><a className="active" href="/watchlist">即時看盤</a></nav>
+      <div className="status"><span className="live-dot" /> {openCount ? `${openCount} 檔交易中` : "市場狀態"}<small>{latest ? `更新 ${formatTime(latest)}` : "每 1 分鐘更新"}</small></div>
+    </header>
+
+    <section className="watch-hero">
+      <div><p className="eyebrow">LIVE WATCHLIST</p><h1>即時看盤</h1><p className="subtitle">建立自己的關注清單，台股與美股報價每分鐘自動更新。</p></div>
+      <form className="watch-add" onSubmit={addItem}>
+        <label htmlFor="watch-query">加入股票</label>
+        <div><input id="watch-query" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="輸入 2330、台積電或 AAPL" autoComplete="off" /><button disabled={loading === "add"}>{loading === "add" ? "查詢中…" : "＋ 加入清單"}</button></div>
+        <small>支援上市、上櫃台股名稱／代號與美股代號</small>
+      </form>
+    </section>
+
+    {message && <button className="notice watch-notice" onClick={() => setMessage("")}>{message}<span>×</span></button>}
+
+    <section className="watch-board">
+      <div className="watch-heading"><div><p className="eyebrow">MY WATCHLIST</p><h2>我的關注股票 <span>{items.length}</span></h2></div><button className="outline" disabled={loading === "all" || !items.length} onClick={() => void refreshAll()}>{loading === "all" ? "更新中…" : "全部更新"}</button></div>
+      {items.length ? <div className="watch-grid">{items.map((item) => {
+        const change = changeOf(item);
+        const direction = change.amount > 0 ? "gain" : change.amount < 0 ? "loss" : "flat";
+        return <article className="watch-card" key={item.id}>
+          <div className="watch-card-head"><div><span className="watch-symbol">{item.symbol.replace(/\.(TW|TWO)$/, "")}</span><small>{item.exchange || (item.currency === "USD" ? "US" : "TW")}</small></div><span className={`market-tag ${item.marketState || "unknown"}`}>{item.marketState === "open" ? "交易中" : item.marketState === "closed" ? "已收盤" : "報價中"}</span></div>
+          <h3>{item.name}</h3>
+          <div className="watch-price"><strong>{formatPrice(item.price, item.currency)}</strong><span className={direction}>{change.available ? `${change.amount >= 0 ? "+" : ""}${change.amount.toFixed(2)}　${change.percent >= 0 ? "+" : ""}${change.percent.toFixed(2)}%` : "—"}</span></div>
+          <div className="watch-meta"><span>昨收 <b>{item.previousClose ? formatPrice(item.previousClose, item.currency) : "—"}</b></span><span>報價時間 <b>{formatTime(item.quoteTime)}</b></span></div>
+          <div className="watch-actions"><button onClick={() => void refreshOne(item)} disabled={loading === item.id}>{loading === item.id ? "更新中…" : "更新報價"}</button><button className="remove" onClick={() => setItems((current) => current.filter((row) => row.id !== item.id))}>移除</button></div>
+        </article>;
+      })}</div> : <div className="watch-empty"><span>＋</span><h2>建立你的第一份看盤清單</h2><p>在上方輸入股票名稱或代號，報價查到後就會自動加入。</p></div>}
+    </section>
+  </main>;
+}
