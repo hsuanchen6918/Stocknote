@@ -185,4 +185,12 @@ footer{max-width:1280px;margin:0 auto;padding:26px 28px 45px;border-top:1px soli
 .watch-empty{display:grid;place-items:center;padding:80px 20px;border:1px dashed #c9d0cc;border-radius:12px;background:rgba(251,250,246,.65);text-align:center;}
 .watch-empty span{display:grid;place-items:center;width:46px;height:46px;border-radius:50%;background:var(--mint);color:var(--teal);font-size:25px;}.watch-empty h2{margin:18px 0 8px;font:500 25px Georgia,"Noto Serif TC",serif;}.watch-empty p{margin:0;color:var(--muted);font-size:12px;}
 @media(max-width:1000px){.watch-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.watch-hero{grid-template-columns:1fr;gap:30px;}.watch-add{max-width:620px;}}
-@media(max-width:800px){.watch-topbar nav{width:auto;order:2;margin-left:auto}.watch-topbar nav a{min-width:92px}.watch-topbar .status{order:3}.watch-hero{padding:44px 20px 34px;}.watch-add{padding:18px}.watch-board{padding:38px 20px 60px}.watch-grid{grid-template-columns:1fr}.watch-price strong{font-size:32px}.watch-heading .outline{display:block}.watch-heading h2{font-size:25px}.watch-add>div{grid-template-columns:1fr}.watch-add button{padding:13px}.watch-notice{top:145px;}}
+@media(max-width:800px){
+  .watch-page{padding-bottom:calc(78px + env(safe-area-inset-bottom));}
+  .watch-topbar{padding-top:max(10px,env(safe-area-inset-top));}
+  .watch-topbar nav{position:fixed;z-index:70;left:12px;right:12px;bottom:max(12px,env(safe-area-inset-bottom));order:initial;width:auto;margin:0;padding:6px;gap:5px;border:1px solid #cbd5d0;border-radius:16px;background:rgba(251,250,246,.96);box-shadow:0 12px 35px rgba(20,35,31,.22);backdrop-filter:blur(16px);}
+  .watch-topbar nav a{min-width:0;border:0;background:transparent;padding:11px 6px;font-size:11px;}
+  .watch-topbar nav a.active{background:var(--teal);color:white;}
+  .watch-topbar .status{order:3;}
+  .watch-hero{padding:44px 20px 34px;}.watch-add{padding:18px}.watch-board{padding:38px 20px 60px}.watch-grid{grid-template-columns:1fr}.watch-price strong{font-size:32px}.watch-heading .outline{display:block}.watch-heading h2{font-size:25px}.watch-add>div{grid-template-columns:1fr}.watch-add button{padding:13px}.watch-notice{top:calc(145px + env(safe-area-inset-top));}
+}

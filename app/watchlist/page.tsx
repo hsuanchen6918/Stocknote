@@ -132,7 +132,7 @@ export default function WatchlistPage() {
   return <main className="watch-page">
     <header className="topbar watch-topbar">
       <a className="brand" href="/"><span className="brand-mark">S</span><span>Stocknote</span></a>
-      <nav><a href="/">投資組合</a><a className="active" href="/watchlist">即時看盤</a></nav>
+      <nav aria-label="主要功能"><a href="/#portfolio">投資組合</a><a href="/#simulator">加碼試算</a><a className="active" href="/watchlist">即時看盤</a></nav>
       <div className="status"><span className="live-dot" /> {openCount ? `${openCount} 檔交易中` : "市場狀態"}<small>{latest ? `更新 ${formatTime(latest)}` : "每 1 分鐘更新"}</small></div>
     </header>
 
