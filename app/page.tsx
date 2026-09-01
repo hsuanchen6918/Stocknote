@@ -48,11 +48,6 @@ type HoldingsCloudResponse = {
   error?: string;
 };
 
-const seed: Holding[] = [
-  { id: "demo-tsm", symbol: "2330.TW", name: "台積電", shares: 1000, cost: 920000, price: 1045, currency: "TWD" },
-  { id: "demo-aapl", symbol: "AAPL", name: "Apple", shares: 12, cost: 2280, price: 218.27, currency: "USD" },
-];
-
 const REFRESH_INTERVAL_MS = 60_000;
 const DELAY_WARNING_MS = 5 * 60_000;
 const GUIDE_STORAGE_KEY = "stocknote-guide-seen";
@@ -94,8 +89,8 @@ function normalizeCloudHoldings(rows?: Holding[]) {
   return Array.isArray(rows) ? rows.map((item) => ({ ...item, quoteTime: item.quoteTime ?? item.updatedAt })) : [];
 }
 
-function isSeedPortfolio(rows: Holding[]) {
-  return rows.length === seed.length && rows.every((row, index) => row.id === seed[index]?.id);
+function isLegacyDemoPortfolio(rows: Holding[]) {
+  return rows.length === 2 && rows.some((row) => row.id === "demo-tsm") && rows.some((row) => row.id === "demo-aapl");
 }
 
 export default function Home() {
@@ -119,8 +114,16 @@ export default function Home() {
   useEffect(() => {
     const hydrateTimer = window.setTimeout(() => {
       const saved = localStorage.getItem("stocknote-holdings");
-      const data = (saved ? JSON.parse(saved) as Holding[] : seed).map((item) => ({ ...item, quoteTime: item.quoteTime ?? item.updatedAt }));
-      hasLocalSavedRef.current = Boolean(saved) && !isSeedPortfolio(data);
+      let data: Holding[] = [];
+      if (saved) {
+        try {
+          const stored = JSON.parse(saved) as Holding[];
+          data = isLegacyDemoPortfolio(stored) ? [] : stored.map((item) => ({ ...item, quoteTime: item.quoteTime ?? item.updatedAt }));
+        } catch {
+          localStorage.removeItem("stocknote-holdings");
+        }
+      }
+      hasLocalSavedRef.current = data.length > 0;
       setHoldings(data);
       setSelectedId(data[0]?.id ?? "");
       setReady(true);
