@@ -89,10 +89,6 @@ function normalizeCloudHoldings(rows?: Holding[]) {
   return Array.isArray(rows) ? rows.map((item) => ({ ...item, quoteTime: item.quoteTime ?? item.updatedAt })) : [];
 }
 
-function isLegacyDemoPortfolio(rows: Holding[]) {
-  return rows.length === 2 && rows.some((row) => row.id === "demo-tsm") && rows.some((row) => row.id === "demo-aapl");
-}
-
 export default function Home() {
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [ready, setReady] = useState(false);
@@ -109,23 +105,11 @@ export default function Home() {
   const [syncStatus, setSyncStatus] = useState<"checking" | "signed-out" | "loading" | "syncing" | "synced" | "error">("checking");
   const [syncMessage, setSyncMessage] = useState("檢查雲端同步狀態…");
   const holdingsRef = useRef<Holding[]>([]);
-  const hasLocalSavedRef = useRef(false);
 
   useEffect(() => {
     const hydrateTimer = window.setTimeout(() => {
-      const saved = localStorage.getItem("stocknote-holdings");
-      let data: Holding[] = [];
-      if (saved) {
-        try {
-          const stored = JSON.parse(saved) as Holding[];
-          data = isLegacyDemoPortfolio(stored) ? [] : stored.map((item) => ({ ...item, quoteTime: item.quoteTime ?? item.updatedAt }));
-        } catch {
-          localStorage.removeItem("stocknote-holdings");
-        }
-      }
-      hasLocalSavedRef.current = data.length > 0;
-      setHoldings(data);
-      setSelectedId(data[0]?.id ?? "");
+      setHoldings([]);
+      setSelectedId("");
       setReady(true);
     }, 0);
     return () => window.clearTimeout(hydrateTimer);
@@ -134,10 +118,6 @@ export default function Home() {
   useEffect(() => {
     holdingsRef.current = holdings;
   }, [holdings]);
-
-  useEffect(() => {
-    if (ready) localStorage.setItem("stocknote-holdings", JSON.stringify(holdings));
-  }, [holdings, ready]);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
@@ -171,11 +151,19 @@ export default function Home() {
           setSyncUser(user);
           setSyncStatus(user ? "loading" : "signed-out");
           setSyncMessage(user ? "正在讀取雲端庫存…" : "登入 Google 後可跨裝置同步庫存。");
+          if (!user) {
+            setHoldings([]);
+            setSelectedId("");
+          }
           unsubscribe = identity.onAuthChange((_event, nextUser) => {
             const normalized = identityToSyncUser(nextUser);
             setSyncUser(normalized);
             setSyncStatus(normalized ? "loading" : "signed-out");
             setSyncMessage(normalized ? "正在讀取雲端庫存…" : "登入 Google 後可跨裝置同步庫存。");
+            if (!normalized) {
+              setHoldings([]);
+              setSelectedId("");
+            }
           });
         } catch {
           if (!active) return;
@@ -259,11 +247,6 @@ export default function Home() {
         return;
       }
 
-      if (hasLocalSavedRef.current && holdingsRef.current.length > 0) {
-        await saveHoldingsToCloud(holdingsRef.current, { silent: true, message: "已將這台裝置的庫存匯入雲端。" });
-        return;
-      }
-
       setHoldings([]);
       setSelectedId("");
       setSyncStatus("synced");
@@ -300,8 +283,10 @@ export default function Home() {
       await logout();
     } finally {
       setSyncUser(null);
+      setHoldings([]);
+      setSelectedId("");
       setSyncStatus("signed-out");
-      setSyncMessage("已登出，庫存暫存在此裝置。");
+      setSyncMessage("已登出，登入後才會顯示帳號庫存。");
     }
   }
 
@@ -388,7 +373,6 @@ export default function Home() {
     const quoteAt = resolved.quoteTime || existing?.quoteTime || existing?.updatedAt;
     const item: Holding = { id: editingId || crypto.randomUUID(), symbol: normalizeSymbol(resolved.symbol), name: resolved.name || resolved.symbol, shares, cost: normalizedCost, price: resolved.price, currency: resolved.currency, updatedAt: quoteAt, quoteTime: quoteAt, fetchedAt: resolved.fetchedAt || existing?.fetchedAt, marketState: resolved.marketState || existing?.marketState || "unknown", inputCost: stockCost, inputCostCurrency: form.costCurrency, exchangeRate: needsConversion ? rate : undefined, inputFee: fee || undefined, inputOtherFee: otherFee || undefined };
     const nextHoldings = editingId ? holdings.map((row) => row.id === editingId ? item : row) : [...holdings, item];
-    hasLocalSavedRef.current = true;
     setHoldings(nextHoldings);
     setSelectedId(item.id);
     void saveHoldingsToCloud(nextHoldings, { silent: true });
@@ -460,7 +444,6 @@ export default function Home() {
 
   function deleteHolding(item: Holding) {
     const nextHoldings = holdings.filter((row) => row.id !== item.id);
-    hasLocalSavedRef.current = true;
     setHoldings(nextHoldings);
     if (selectedId === item.id) setSelectedId(nextHoldings[0]?.id ?? "");
     void saveHoldingsToCloud(nextHoldings, { silent: true });
@@ -513,7 +496,7 @@ export default function Home() {
           <button className="guide-close" type="button" onClick={closeGuide} aria-label="關閉導引">×</button>
           <p className="eyebrow">WELCOME GUIDE</p>
           <h2 id="guide-title">3 步驟開始搶救錢包</h2>
-          <p className="guide-copy">先建立庫存，再看即時損益，最後用加碼與目標價試算下一步。登入 Google 後可跨裝置同步庫存；沒登入時仍會存在這台裝置。</p>
+          <p className="guide-copy">先登入 Google 載入專屬庫存，再看即時損益，最後用加碼與目標價試算下一步。登出後不會在畫面顯示帳號庫存。</p>
           <div className="guide-steps">
             <article><span>01</span><h3>新增股票庫存</h3><p>輸入股票名稱或代號，台股/美股會自動查找名稱與報價，再填入股數、成本與費用。</p></article>
             <article><span>02</span><h3>查看即時損益</h3><p>庫存總覽會分開顯示台股與美股，包含目前市值、未實現損益與報酬率。</p></article>
