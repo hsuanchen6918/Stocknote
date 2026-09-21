@@ -4,9 +4,9 @@ Stocknote 是一個台股與美股投資記錄工具，支援庫存損益追蹤�
 
 這個專案的目標是提供一個乾淨、可跨裝置使用的個人投資儀表板。未登入時主頁不會顯示任何帳號庫存；登入後才會載入該 Google 帳號的雲端資料。
 
-## Live App
+## Web
 
-https://stocknote-tw-us.hsuan111193514.chatgpt.site
+https://stocknote88.netlify.app/
 
 ## Features
 
