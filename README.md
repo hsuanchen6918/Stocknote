@@ -8,6 +8,8 @@ Stocknote 是一個台股與美股投資記錄工具，支援庫存損益追蹤�
 
 https://stocknote88.netlify.app/
 
+一般使用者可以直接開啟上方網址使用，不需要在本機安裝或啟動專案。
+
 ## Features
 
 - 台股上市報價：透過 TWSE MIS 取得即時價格。
@@ -36,11 +38,13 @@ Stocknote 的資料行為分成「投資組合」與「即時看盤自選清單�
 - Vinext
 - TypeScript
 - Tailwind CSS
-- Cloudflare Sites
+- Netlify Hosting
 - Netlify Identity
 - Netlify Blobs
 
-## Getting Started
+## Local Development
+
+以下步驟只提供給想在本機修改或開發 Stocknote 的開發者；一般使用請直接開啟 Live App。
 
 需求：
 
@@ -62,7 +66,7 @@ $env:WRANGLER_LOG_PATH=".wrangler/wrangler.log"
 
 開發伺服器啟動後，打開終端機顯示的本機網址。
 
-## Build
+## Build Locally
 
 在 Windows PowerShell 建置：
 
