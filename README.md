@@ -1,54 +1,111 @@
 # Stocknote
 
-台股與美股庫存管理、即時報價、持續買入試算工具。
+Stocknote 是一個台股與美股投資記錄工具，支援庫存損益追蹤、即時報價、自選股看盤、加碼試算與 Google 帳號同步。
 
-## 功能
+這個專案的目標是提供一個乾淨、可跨裝置使用的個人投資儀表板。未登入時主頁不會顯示任何帳號庫存；登入後才會載入該 Google 帳號的雲端資料。
 
-- 台股上市即時報價使用 TWSE MIS。
-- 台股上櫃即時報價使用 MIS OTC 參數。
-- 美股報價目前維持 Yahoo Finance。
-- 可輸入庫存股數、總成本、手續費與其他費用。
-- 美股成本可選美元或台幣。
-- 自動計算目前市值、未實現損益、未實現報酬率與平均成本。
-- 每 1 分鐘自動檢查報價。
-- 可模擬持續買入後的新成本與預期股價損益。
-- 沒登入時資料儲存在瀏覽器 localStorage。
-- 部署到 Netlify 後，可用 Google 登入並透過 Netlify Blobs 跨裝置同步庫存。
+## Live App
 
-## Netlify 跨裝置同步設定
+https://stocknote-tw-us.hsuan111193514.chatgpt.site
 
-同步功能需要在 Netlify 後台啟用：
+## Features
 
-1. 到 Netlify 專案設定啟用 Identity。
-2. 在 Identity 的 external providers 啟用 Google 登入。
-3. 重新部署後，網頁右上角按「Google 同步登入」。
+- 台股上市報價：透過 TWSE MIS 取得即時價格。
+- 台股上櫃報價：透過 TWSE MIS OTC 參數取得即時價格。
+- 美股報價：透過 Yahoo Finance 查詢。
+- 投資組合管理：記錄股數、總成本、手續費、其他費用與成本幣別。
+- 損益計算：自動計算市值、未實現損益、報酬率與平均成本。
+- 自選股看盤：可自行新增台股或美股，並每分鐘檢查最新報價。
+- 加碼試算：模擬追加買入後的新平均成本與目標價損益。
+- Google 帳號同步：登入後透過 Netlify Identity 與 Netlify Blobs 同步庫存與自選清單。
+- 行動裝置支援：針對手機版導覽與安全區做了響應式調整。
 
-第一次登入時，如果雲端還沒有庫存，會把目前這台裝置的庫存匯入雲端；之後新增、編輯、刪除庫存會自動同步。報價仍由各裝置每 1 分鐘各自更新，避免每分鐘把報價寫回雲端。
+## Data And Sync Behavior
 
-## 開啟網頁
+Stocknote 的資料行為分成「投資組合」與「即時看盤自選清單」：
 
-需求：Node.js `>=22.13.0`
+- 投資組合：未登入時主頁預設為空白，不會讀取或顯示帳號庫存。登入 Google 後，才會載入該帳號的雲端庫存。
+- 投資組合登出：登出後會立即清空畫面上的庫存資料。
+- 即時看盤自選清單：未登入時會保存在目前瀏覽器；登入後可同步到 Google 帳號，跨裝置載入。
+- 報價資料：每個裝置定期重新查詢報價，避免把每分鐘價格更新都寫入雲端。
 
-在 Windows PowerShell 執行：
+## Tech Stack
+
+- Next.js
+- React
+- Vinext
+- TypeScript
+- Tailwind CSS
+- Cloudflare Sites
+- Netlify Identity
+- Netlify Blobs
+
+## Getting Started
+
+需求：
+
+- Node.js `>=22.13.0`
+- npm
+
+安裝依賴：
 
 ```powershell
 npm install
+```
+
+在 Windows PowerShell 啟動開發環境：
+
+```powershell
 $env:WRANGLER_LOG_PATH=".wrangler/wrangler.log"
 .\node_modules\.bin\vinext.cmd dev
 ```
 
-接著打開終端機顯示的本機網址。
+開發伺服器啟動後，打開終端機顯示的本機網址。
 
-## 常用指令
+## Build
+
+在 Windows PowerShell 建置：
 
 ```powershell
 $env:WRANGLER_LOG_PATH=".wrangler/wrangler.log"
 .\node_modules\.bin\vinext.cmd build
 ```
 
-## 技術
+在 macOS、Linux 或支援 POSIX-style environment variables 的環境中，也可以使用：
 
-- Next.js
-- React
-- Vinext
-- Cloudflare Sites
+```bash
+npm run build
+```
+
+## Cloud Sync Setup
+
+若要啟用 Google 登入與跨裝置同步，需要在部署環境設定：
+
+1. 啟用 Netlify Identity。
+2. 在 Netlify Identity 的 external providers 啟用 Google。
+3. 啟用 Netlify Blobs，供庫存與自選清單儲存使用。
+4. 重新部署網站。
+
+同步 API 會依登入使用者 ID 分開儲存資料，不同 Google 帳號不會共用庫存或自選清單。
+
+## Project Structure
+
+```text
+app/
+  api/
+    holdings/    Google 帳號庫存同步 API
+    lookup/      股票搜尋與報價查詢 API
+    quote/       單一股票報價 API
+    watchlist/   即時看盤自選清單同步 API
+  watchlist/     即時看盤頁面
+  page.tsx       投資組合與加碼試算主頁
+public/          PWA 圖示與靜態資源
+```
+
+## Disclaimer
+
+Stocknote 僅供個人記錄、報價查看與試算使用，不構成任何投資建議。報價資料可能延遲、缺漏或因第三方服務異常而暫時不可用；實際交易前請以券商或交易所資料為準。
+
+## License
+
+目前尚未指定開源授權。若要公開給其他人使用或貢獻，建議補上明確的 License。
